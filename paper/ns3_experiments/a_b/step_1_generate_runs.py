@@ -29,10 +29,12 @@ except (ImportError, SystemError):
 
 local_shell = exputil.LocalShell()
 
+# 移除 runs、pdf、data 三个文件夹，确保后面可以正常新生成文件和数据
 local_shell.remove_force_recursive("runs")
 local_shell.remove_force_recursive("pdf")
 local_shell.remove_force_recursive("data")
 
+# 完成仿真的参数设置：复制 config 模板到 runs 下，并替换其中的参数值。
 # TCP runs
 for run in get_tcp_run_list():
 
@@ -61,6 +63,7 @@ for run in get_tcp_run_list():
                                           "[GSL-MAX-QUEUE-SIZE-PKTS]", str(run["queue_size_pkt"]))
     local_shell.sed_replace_in_file_plain(run_dir + "/config_ns3.properties",
                                           "[ENABLE-ISL-UTILIZATION-TRACKING]", "true" if run["enable_isl_utilization_tracking"] else "false")
+    # 设置是否记录 isl 的利用率，以及记录的时间粒度
     if run["enable_isl_utilization_tracking"]:
         local_shell.sed_replace_in_file_plain(
             run_dir + "/config_ns3.properties",
@@ -73,6 +76,7 @@ for run in get_tcp_run_list():
     local_shell.sed_replace_in_file_plain(run_dir + "/config_ns3.properties",
                                           "[TCP-SOCKET-TYPE]", str(run["tcp_socket_type"]))
 
+    # 记录事件：复制 schedule 模板到runs 下，并替换 from_id 和 to_id   
     # schedule.csv
     local_shell.copy_file("templates/template_tcp_a_b_schedule.csv", run_dir + "/schedule.csv")
     local_shell.sed_replace_in_file_plain(run_dir + "/schedule.csv", "[FROM]", str(run["from_id"]))
@@ -106,6 +110,8 @@ for run in get_pings_run_list():
                                           "[GSL-MAX-QUEUE-SIZE-PKTS]", str(run["queue_size_pkt"]))
     local_shell.sed_replace_in_file_plain(run_dir + "/config_ns3.properties",
                                           "[ENABLE-ISL-UTILIZATION-TRACKING]", "true" if run["enable_isl_utilization_tracking"] else "false")
+    
+
     if run["enable_isl_utilization_tracking"]:
         local_shell.sed_replace_in_file_plain(
             run_dir + "/config_ns3.properties",

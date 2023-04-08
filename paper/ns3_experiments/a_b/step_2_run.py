@@ -55,6 +55,7 @@ for run in get_pings_run_list():
     logs_ns3_dir = "runs/" + run["name"] + "/logs_ns3"
     local_shell.remove_force_recursive(logs_ns3_dir)
     local_shell.make_full_dir(logs_ns3_dir)
+    # 运行 main——satnet，并将结果存储到指定文件夹下。
     commands_to_run.append(
         "cd ../../../ns3-sat-sim/simulator; " 
         "./waf --run=\"main_satnet --run_dir='../../paper/ns3_experiments/a_b/runs/" + run["name"] + "'\" "
