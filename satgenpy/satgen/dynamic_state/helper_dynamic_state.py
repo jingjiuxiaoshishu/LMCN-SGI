@@ -39,6 +39,8 @@ def worker(args):
         simulation_end_time_ns,
         time_step_ns,
         offset_ns,
+        num_orbs,
+        num_sats_per_orbs,
         satellites,
         ground_stations,
         list_isls,
@@ -56,6 +58,8 @@ def worker(args):
         simulation_end_time_ns,
         time_step_ns,
         offset_ns,
+        num_orbs,
+        num_sats_per_orbs,
         satellites,
         ground_stations,
         list_isls,
@@ -104,6 +108,8 @@ def help_dynamic_state(
         ground_stations = read_ground_stations_extended(output_generated_data_dir + "/" + name + "/ground_stations.txt")
         tles = read_tles(output_generated_data_dir + "/" + name + "/tles.txt")
         satellites = tles["satellites"]
+        num_orbs = int(tles["n_orbits"])
+        num_sats_per_orbs = int(tles["n_sats_per_orbit"])
         list_isls = read_isls(output_generated_data_dir + "/" + name + "/isls.txt", len(satellites))
         list_gsl_interfaces_info = read_gsl_interfaces_info(
             output_generated_data_dir + "/" + name + "/gsl_interfaces_info.txt",
@@ -125,6 +131,8 @@ def help_dynamic_state(
             (current + num_time_steps) * time_step_ns + (time_step_ns if (i + 1) != num_threads else 0),
             time_step_ns,
             current * time_step_ns,
+            num_orbs,
+            num_sats_per_orbs,
             satellites,
             ground_stations,
             list_isls,

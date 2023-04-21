@@ -24,7 +24,7 @@ def node_to_node_cost_estimate(
     def heuristic_Fuc(nid_1,nid_2):
         if nid_1>=num_satellites or nid_2>=num_satellites:
             raise ValueError("节点编号必须小于卫星总数")
-        unit_ISLs_distance = sat_net_graph_only_satellites_with_isls.edges[(nid_1%num_sats_per_orbs, (nid_1+1)%num_sats_per_orbs)]["weight"]
+        unit_ISLs_distance = sat_net_graph_only_satellites_with_isls.edges[(nid_1, (nid_1+1)%num_sats_per_orbs)]["weight"]
         # 保证 node 1 的编号小于 node 2
         nid_1,nid_2= sorted([nid_1,nid_2])
         
@@ -84,12 +84,7 @@ def calculate_fstate_shortest_path_without_gs_relaying(
             for dst_gid in range(num_ground_stations):
                 dst_gs_node_id = num_satellites + dst_gid
                 # 初始设定目标卫星为目标地面站最近的一颗卫星
-                possible_dst_sats = ground_station_satellites_in_range_candidates[dst_gid]
-                print(f"地面站数目：",num_ground_stations,len(ground_station_satellites_in_range_candidates))
-                print("我是傻逼",dst_gid,len(possible_dst_sats),len(possible_dst_sats[1]))
-                if 
-                _,dst_sat = sat_closest_to_gs(dst_gid,ground_station_satellites_in_range_candidates)
-                print("我不是傻逼",dst_gid,dst_sat)
+                _,dst_sat = sat_closest_to_gs(dst_gs_node_id,ground_station_satellites_in_range_candidates)
                 # 如果当前卫星与目的地面站可建立链接，则更新目标卫星为当前卫星
                 for tup in ground_station_satellites_in_range_candidates[dst_gid]:
                     if tup[1] == curr:

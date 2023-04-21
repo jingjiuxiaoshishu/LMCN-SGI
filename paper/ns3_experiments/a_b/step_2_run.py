@@ -55,6 +55,7 @@ for run in get_pings_run_list():
     logs_ns3_dir = "runs/" + run["name"] + "/logs_ns3"
     local_shell.remove_force_recursive(logs_ns3_dir)
     local_shell.make_full_dir(logs_ns3_dir)
+    # 运行 main——satnet，并将结果存储到指定文件夹下。
     commands_to_run.append(
         "cd ../../../ns3-sat-sim/simulator; " 
         "./waf --run=\"main_satnet --run_dir='../../paper/ns3_experiments/a_b/runs/" + run["name"] + "'\" "
@@ -65,7 +66,9 @@ for run in get_pings_run_list():
 print("Running commands (at most %d in parallel)..." % max_num_processes)
 for i in range(len(commands_to_run)):
     print("Starting command %d out of %d: %s" % (i + 1, len(commands_to_run), commands_to_run[i]))
+    # 新建一个screen，后台运行，不会阻塞当前进程，跑完 commands_to_run[i] 后，screen 会话会自动关闭。
     local_shell.detached_exec(commands_to_run[i])
+    # 保证screen 数目不大于 max_num_processes
     while local_shell.count_screens() >= max_num_processes:
         time.sleep(2)
 
