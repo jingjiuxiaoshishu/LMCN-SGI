@@ -84,37 +84,34 @@ def calculate_fstate_shortest_path_without_gs_relaying(
             for dst_gid in range(num_ground_stations):
                 dst_gs_node_id = num_satellites + dst_gid
                 # 初始设定目标卫星为目标地面站最近的一颗卫星
-                possible_dst_sats = ground_station_satellites_in_range_candidates[dst_gid]
-                print(f"地面站数目：",num_ground_stations,len(ground_station_satellites_in_range_candidates))
-                print("我是傻逼",dst_gid,len(possible_dst_sats),len(possible_dst_sats[1]))
-                if 
-                _,dst_sat = sat_closest_to_gs(dst_gid,ground_station_satellites_in_range_candidates)
-                print("我不是傻逼",dst_gid,dst_sat)
-                # 如果当前卫星与目的地面站可建立链接，则更新目标卫星为当前卫星
-                for tup in ground_station_satellites_in_range_candidates[dst_gid]:
-                    if tup[1] == curr:
-                        dst_sat = curr
-                        break
 
+                # 默认为目标地面站无可达卫星，即 next_hop_decision 均为 -1
                 next_hop_decision = (-1, -1, -1)
+                if len(ground_station_satellites_in_range_candidates[dst_gid])>0:
+                    _,dst_sat = sat_closest_to_gs(dst_gid,ground_station_satellites_in_range_candidates)
+                    # 如果当前卫星与目的地面站可建立链接，则更新目标卫星为当前卫星
+                    for tup in ground_station_satellites_in_range_candidates[dst_gid]:
+                        if tup[1] == curr:
+                            dst_sat = curr
+                            break
 
-                # 当前卫星为目标卫星，直接转发到地面，否则通过 astar 算法确定下一跳
-                if curr == dst_sat:
-                    next_hop_decision = (
-                        dst_gs_node_id,
-                        num_isls_per_sat[dst_sat] + gid_to_sat_gsl_if_idx[dst_gid],
-                        0
-                    )
-                else:
-                    try:
-                        path = nx.astar_path(sat_net_graph_only_satellites_with_isls, curr, dst_sat, heuristic=heuristic_Fuc, weight='weight')
-                    except NetworkXNoPath:
-                        print("gid 不可达")
-                    next_hop_decision = (
-                        path[1],
-                        sat_neighbor_to_if[(curr, path[1])],
-                        sat_neighbor_to_if[(path[1], curr)]
-                    )
+                    # 当前卫星为目标卫星，直接转发到地面，否则通过 astar 算法确定下一跳
+                    if curr == dst_sat:
+                        next_hop_decision = (
+                            dst_gs_node_id,
+                            num_isls_per_sat[dst_sat] + gid_to_sat_gsl_if_idx[dst_gid],
+                            0
+                        )
+                    else:
+                        try:
+                            path = nx.astar_path(sat_net_graph_only_satellites_with_isls, curr, dst_sat, heuristic=heuristic_Fuc, weight='weight')
+                        except NetworkXNoPath:
+                            print("gid 不可达")
+                        next_hop_decision = (
+                            path[1],
+                            sat_neighbor_to_if[(curr, path[1])],
+                            sat_neighbor_to_if[(path[1], curr)]
+                        )
                 
                 # Write to forwarding state
                 if not prev_fstate or prev_fstate[(curr, dst_gs_node_id)] != next_hop_decision:
@@ -132,22 +129,25 @@ def calculate_fstate_shortest_path_without_gs_relaying(
                 if src_gid != dst_gid:
                     src_gs_node_id = num_satellites + src_gid
                     dst_gs_node_id = num_satellites + dst_gid
-                    # 源地面站的接入卫星为距离源地面站最近的一颗卫星
-                    _,src_sat = sat_closest_to_gs(src_gs_node_id,ground_station_satellites_in_range_candidates)
-                    # # 初始设定目标卫星为目标地面站最近的一颗卫星
-                    # _,dst_sat = sat_closest_to_gs(dst_gs_node_id,ground_station_satellites_in_range_candidates)
-                    # # 如果当前卫星与目的地面站可建立链接，则更新目标卫星为当前卫星
-                    # for tup in ground_station_satellites_in_range_candidates[dst_gid]:
-                    #     if tup[1] == src_sat:
-                    #         dst_sat = src_sat
-                    #         break
+                    # 默认为源地面站无可接入卫星，或目标地面站无可达卫星，即 next_hop_decision 均为 -1
+                    next_hop_decision = (-1, -1, -1)
+                    if len(ground_station_satellites_in_range_candidates[src_gid])>0 and len(ground_station_satellites_in_range_candidates[dst_gid])>0:
+                        # 源地面站的接入卫星为距离源地面站最近的一颗卫星
+                        _,src_sat = sat_closest_to_gs(src_gid,ground_station_satellites_in_range_candidates)
+                        # # 初始设定目标卫星为目标地面站最近的一颗卫星
+                        # _,dst_sat = sat_closest_to_gs(dst_gs_node_id,ground_station_satellites_in_range_candidates)
+                        # # 如果当前卫星与目的地面站可建立链接，则更新目标卫星为当前卫星
+                        # for tup in ground_station_satellites_in_range_candidates[dst_gid]:
+                        #     if tup[1] == src_sat:
+                        #         dst_sat = src_sat
+                        #         break
 
-                    # 不管如何直接选择src_sat 上星
-                    next_hop_decision = (
-                        src_sat, 
-                        0,
-                        num_isls_per_sat[src_sat] + gid_to_sat_gsl_if_idx[src_gid]
-                    )
+                        # 不管如何直接选择src_sat 上星
+                        next_hop_decision = (
+                            src_sat, 
+                            0,
+                            num_isls_per_sat[src_sat] + gid_to_sat_gsl_if_idx[src_gid]
+                        )
 
                     # Write to forwarding state
                     if not prev_fstate or prev_fstate[(src_gs_node_id, dst_gs_node_id)] != next_hop_decision:
