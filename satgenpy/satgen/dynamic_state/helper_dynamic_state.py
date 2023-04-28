@@ -27,12 +27,35 @@ from satgen.interfaces import *
 from .generate_dynamic_state import generate_dynamic_state
 import os
 import math
-from multiprocessing.dummy import Pool as ThreadPool
+from multiprocessing import Pool
 
+def worker(args) :
+    (
+        output_generated_data_dir, 
+        name, 
+        simulation_end_time_ns,
+        time_step_ns,
+        offset_ns,
+        duration_s,
+        max_gsl_length_m, 
+        max_isl_length_m, 
+        dynamic_state_algorithm, 
+        print_logs
+     ) = args
+    # 生成 generate_dynamic_state 所需参数
+    args_list = generate_single_arg_list(
+        output_generated_data_dir,
+        name,
+        simulation_end_time_ns,
+        time_step_ns,
+        offset_ns,
+        duration_s,
+        max_gsl_length_m,
+        max_isl_length_m,
+        dynamic_state_algorithm,
+        print_logs
+    )
 
-def worker(args):
-
-    # Extract arguments
     (
         output_dynamic_state_dir,
         epoch,
@@ -49,8 +72,9 @@ def worker(args):
         max_isl_length_m,
         dynamic_state_algorithm,
         print_logs
-     ) = args
-
+     ) = args_list
+    
+    
     # Generate dynamic state
     generate_dynamic_state(
         output_dynamic_state_dir,
@@ -75,68 +99,97 @@ def worker(args):
     )
 
 
-def help_dynamic_state(
+
+def generate_single_arg_list(
+        output_generated_data_dir,
+        name,
+        simulation_end_time_ns,
+        time_step_ns,
+        offset_ns,
+        duration_s,
+        max_gsl_length_m,
+        max_isl_length_m,
+        dynamic_state_algorithm,
+        print_logs
+):
+    # Directory
+    output_dynamic_state_dir = output_generated_data_dir + "/" + name + "/dynamic_state_" + str(time_step_ns/1000/1000) \
+                               + "ms_for_" + str(duration_s) + "s"
+    # 若没有该输出文件夹，则新建文件夹
+    if not os.path.isdir(output_dynamic_state_dir):
+        os.makedirs(output_dynamic_state_dir)
+
+
+    # Variables (load in for each thread such that they don't interfere)
+    ground_stations = read_ground_stations_extended(output_generated_data_dir + "/" + name + "/ground_stations.txt")
+    tles = read_tles(output_generated_data_dir + "/" + name + "/tles.txt")
+    satellites = tles["satellites"]
+    num_orbs = int(tles["n_orbits"])
+    num_sats_per_orbs = int(tles["n_sats_per_orbit"])
+    list_isls = read_isls(output_generated_data_dir + "/" + name + "/isls.txt", len(satellites))
+    list_gsl_interfaces_info = read_gsl_interfaces_info(
+        output_generated_data_dir + "/" + name + "/gsl_interfaces_info.txt",
+        len(satellites),
+        len(ground_stations)
+    )
+    epoch = tles["epoch"]
+
+    return (
+        output_dynamic_state_dir,
+        epoch,
+        simulation_end_time_ns,
+        time_step_ns,
+        offset_ns,
+        num_orbs,
+        num_sats_per_orbs,
+        satellites,
+        ground_stations,
+        list_isls,
+        list_gsl_interfaces_info,
+        max_gsl_length_m,
+        max_isl_length_m,
+        dynamic_state_algorithm,
+        print_logs
+    )
+
+def generate_all_args_list(
         output_generated_data_dir, num_threads, name, time_step_ms, duration_s,
         max_gsl_length_m, max_isl_length_m, dynamic_state_algorithm, print_logs
 ):
 
-    # Directory
-    output_dynamic_state_dir = output_generated_data_dir + "/" + name + "/dynamic_state_" + str(time_step_ms) \
-                               + "ms_for_" + str(duration_s) + "s"
-    if not os.path.isdir(output_dynamic_state_dir):
-        os.makedirs(output_dynamic_state_dir)
 
     # In nanoseconds
     simulation_end_time_ns = duration_s * 1000 * 1000 * 1000
     time_step_ns = time_step_ms * 1000 * 1000
 
+    # 单个任务默认生成连续 50 个时隙的路由表
+    num_calculations_per_task = 50
+    # 总共有多少个时隙的路由表需要计算
     num_calculations = math.floor(simulation_end_time_ns / time_step_ns)
-    calculations_per_thread = int(math.floor(float(num_calculations) / float(num_threads)))
-    num_threads_with_one_more = num_calculations % num_threads
+    # 总共有多少个任务，即 list_args 的长度（向下取整）
+    num_task = int(math.floor(float(num_calculations) / float(num_calculations_per_task)))
+    # 最后一个任务需要计算的时隙路由表的个数
+    num_calculations_last_task = num_calculations_per_task + num_calculations % num_calculations_per_task
 
     # Prepare arguments
     current = 0
     list_args = []
-    for i in range(num_threads):
+    for i in range(num_task):
 
         # How many time steps to calculate for
-        num_time_steps = calculations_per_thread
-        if i < num_threads_with_one_more:
-            num_time_steps += 1
-
-        # Variables (load in for each thread such that they don't interfere)
-        ground_stations = read_ground_stations_extended(output_generated_data_dir + "/" + name + "/ground_stations.txt")
-        tles = read_tles(output_generated_data_dir + "/" + name + "/tles.txt")
-        satellites = tles["satellites"]
-        num_orbs = int(tles["n_orbits"])
-        num_sats_per_orbs = int(tles["n_sats_per_orbit"])
-        list_isls = read_isls(output_generated_data_dir + "/" + name + "/isls.txt", len(satellites))
-        list_gsl_interfaces_info = read_gsl_interfaces_info(
-            output_generated_data_dir + "/" + name + "/gsl_interfaces_info.txt",
-            len(satellites),
-            len(ground_stations)
-        )
-        epoch = tles["epoch"]
-
-        # Print goal
-        print("Thread %d does interval [%.2f ms, %.2f ms]" % (
-            i,
-            (current * time_step_ns) / 1e6,
-            ((current + num_time_steps) * time_step_ns) / 1e6
-        ))
+        if i < num_task-1:
+            num_time_steps = num_calculations_per_task
+        else:
+            num_time_steps = num_calculations_last_task
 
         list_args.append((
-            output_dynamic_state_dir,
-            epoch,
-            (current + num_time_steps) * time_step_ns + (time_step_ns if (i + 1) != num_threads else 0),
+            output_generated_data_dir,
+            name,
+            # 推测 (time_step_ns if (i + 1) != num_task else 0) 作用为保证实际计算时间成语仿真时长。
+            (current + num_time_steps) * time_step_ns + (time_step_ns if (i + 1) != num_task else 0),
             time_step_ns,
             current * time_step_ns,
-            num_orbs,
-            num_sats_per_orbs,
-            satellites,
-            ground_stations,
-            list_isls,
-            list_gsl_interfaces_info,
+            duration_s,
             max_gsl_length_m,
             max_isl_length_m,
             dynamic_state_algorithm,
@@ -144,9 +197,32 @@ def help_dynamic_state(
         ))
 
         current += num_time_steps
+    return list_args
 
+
+def help_dynamic_state(
+        output_generated_data_dir, num_threads, name, time_step_ms, duration_s,
+        max_gsl_length_m, max_isl_length_m, dynamic_state_algorithm, print_logs
+):
+    # build all args
+    all_args = generate_all_args_list(
+        output_generated_data_dir,
+        num_threads,
+        name,
+        time_step_ms,
+        duration_s,
+        max_gsl_length_m,
+        max_isl_length_m,
+        dynamic_state_algorithm,
+        print_logs
+    )
     # Run in parallel
-    pool = ThreadPool(num_threads)
-    pool.map(worker, list_args)
-    pool.close()
-    pool.join()
+    with Pool(num_threads) as p:
+        result = p.imap_unordered(worker,all_args,chunksize=1)
+        # result 是一个 iterable，需要用 for 循环遍历才会执行
+        for _ in result:
+            pass
+    # pool = ThreadPool(num_threads)
+    # pool.map(worker, list_args)
+    # pool.close()
+    # pool.join()

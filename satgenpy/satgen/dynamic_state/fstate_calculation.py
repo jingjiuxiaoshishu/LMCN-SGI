@@ -73,22 +73,31 @@ def calculate_fstate_shortest_path_without_gs_relaying(
     # 实例化 astar 的启发函数
     heuristic_Fuc = node_to_node_cost_estimate(num_orbs,num_sats_per_orbs,num_satellites,sat_net_graph_only_satellites_with_isls)
 
-    from networkx.exception import NetworkXNoPath
+    # 基于 astar 计算路由路径
+    path={}
+    path_len={}
+    for src in range(num_satellites):
+        for dst in range(num_satellites):
+            path[f'{src}-{dst}']=nx.astar_path(sat_net_graph_only_satellites_with_isls, src, dst, heuristic=heuristic_Fuc, weight='weight')
+            path_len[f'{src}-{dst}'] = nx.astar_path_length(sat_net_graph_only_satellites_with_isls, src,dst, heuristic=heuristic_Fuc, weight='weight')
+    print(f'time_since_epoch_ns:{time_since_epoch_ns/1e9} seconds, astar calculation is completed')
+    
     # Now write state to file for complete graph
     output_filename = output_dynamic_state_dir + "/fstate_" + str(time_since_epoch_ns) + ".txt"
     if enable_verbose_logs:
         print("  > Writing forwarding state to: " + output_filename)
     with open(output_filename, "w+") as f_out:
 
+        # 计算源节点为卫星，目的节点为地面站的路由表
         for curr in range (num_satellites):
             for dst_gid in range(num_ground_stations):
                 dst_gs_node_id = num_satellites + dst_gid
 
                 # 默认为目标地面站无可达卫星，即 next_hop_decision 均为 -1
                 next_hop_decision = (-1, -1, -1)
+                dst_sat = -1
                 # 如果目标地面站有可达卫星，则计算路由表
                 if len(ground_station_satellites_in_range_candidates[dst_gid])>0:
-
                     # 如果当前卫星与目的地面站可建立链接，则更新目标卫星为当前卫星
                     for possible_dst_sats in ground_station_satellites_in_range_candidates[dst_gid]:
                         if possible_dst_sats[1] == curr:
@@ -96,7 +105,7 @@ def calculate_fstate_shortest_path_without_gs_relaying(
                             break
 
                     # 当前卫星为目标卫星，直接转发到地面，否则通过 astar 算法确定下一跳
-                    if curr == dst_sat:
+                    if curr == dst_sat and dst_sat!=-1:
                         next_hop_decision = (
                             dst_gs_node_id,
                             num_isls_per_sat[dst_sat] + gid_to_sat_gsl_if_idx[dst_gid],
@@ -106,11 +115,9 @@ def calculate_fstate_shortest_path_without_gs_relaying(
                         path_m =[]
                         distance_m = math.inf
                         for possible_dst_sats in ground_station_satellites_in_range_candidates[dst_gid]:
-                            path = nx.astar_path(sat_net_graph_only_satellites_with_isls, curr, possible_dst_sats[1], heuristic=heuristic_Fuc, weight='weight')
-                            path_len = nx.astar_path_length(sat_net_graph_only_satellites_with_isls, curr, possible_dst_sats[1], heuristic=heuristic_Fuc, weight='weight')
-                            if path_len < distance_m:
-                                path_m = path
-                                distance_m = path_len
+                            if path_len[f'{curr}-{possible_dst_sats[1]}'] < distance_m:
+                                path_m = path[f'{curr}-{possible_dst_sats[1]}']
+                                distance_m = path_len[f'{curr}-{possible_dst_sats[1]}']
                         
                         if not math.isinf(distance_m):
                             next_hop_decision = (
@@ -142,19 +149,15 @@ def calculate_fstate_shortest_path_without_gs_relaying(
                         distance_m = math.inf
                         for possible_src_sats in ground_station_satellites_in_range_candidates[src_gid]:
                             for possible_dst_sats in ground_station_satellites_in_range_candidates[dst_gid]:
-                                path = nx.astar_path(sat_net_graph_only_satellites_with_isls, possible_src_sats[1], possible_dst_sats[1], heuristic=heuristic_Fuc, weight='weight')
-                                path_len = nx.astar_path_length(sat_net_graph_only_satellites_with_isls, possible_src_sats[1], possible_dst_sats[1], heuristic=heuristic_Fuc, weight='weight')
-                                if path_len < distance_m:
-                                    path_m = path
-                                    distance_m = path_len
-                        
-
-                        # 不管如何直接选择src_sat 上星
-                        next_hop_decision = (
-                            src_sat, 
-                            0,
-                            num_isls_per_sat[src_sat] + gid_to_sat_gsl_if_idx[src_gid]
-                        )
+                                if path_len[f'{possible_src_sats[1]}-{possible_dst_sats[1]}'] < distance_m:
+                                    path_m = path[f'{possible_src_sats[1]}-{possible_dst_sats[1]}']
+                                    distance_m = path_len[f'{possible_src_sats[1]}-{possible_dst_sats[1]}']
+                        if not math.isinf(distance_m):
+                            next_hop_decision = (
+                                path_m[0],
+                                0,
+                                num_isls_per_sat[path_m[0]] + gid_to_sat_gsl_if_idx[src_gid]
+                            )
 
                     # Write to forwarding state
                     if not prev_fstate or prev_fstate[(src_gs_node_id, dst_gs_node_id)] != next_hop_decision:
