@@ -1,5 +1,10 @@
 import math
 import networkx as nx
+import time
+from . import cthulhu_grid_routing_algorithm as cthulhu
+
+
+
 
 # 输入： 地面站id、地面站可使卫星列表
 # 输出： (distance_m,sid) 最近卫星的距离和 sid
@@ -11,20 +16,19 @@ def sat_closest_to_gs(
     return min(possible_dst_sats)
     
 
-# astar 的启发函数
+# 实例化卫星跳数估算函数
 # 只估算 ISL 的距离，默认没有节点故障和链路故障
 # 单跳 ISL 距离视为恒定不变，为轨道内单跳 ISL 的值
 def node_to_node_cost_estimate(
     num_orbs,
     num_sats_per_orbs,
     num_satellites,
-    sat_net_graph_only_satellites_with_isls,
+    shift_between_last_and_first
 ):
     
     def heuristic_Fuc(nid_1,nid_2):
         if nid_1>=num_satellites or nid_2>=num_satellites:
             raise ValueError("节点编号必须小于卫星总数")
-        unit_ISLs_distance = sat_net_graph_only_satellites_with_isls.edges[(nid_1%num_sats_per_orbs, (nid_1+1)%num_sats_per_orbs)]["weight"]
         # 保证 node 1 的编号小于 node 2
         nid_1,nid_2= sorted([nid_1,nid_2])
         
@@ -37,10 +41,11 @@ def node_to_node_cost_estimate(
         node2_orbs = nid_2//num_sats_per_orbs
         node2_id_in_orbs = nid_2 - node2_orbs*num_sats_per_orbs
 
-        intra_orbs_hop = min((node1_orbs-node2_orbs)%num_orbs, (node2_orbs-node1_orbs)%num_orbs)
-        intre_orbs_hop = min((node1_id_in_orbs-node2_id_in_orbs)%num_sats_per_orbs,(node2_id_in_orbs-node1_id_in_orbs)%num_sats_per_orbs)
-        hop_nid_1_to_nid_2 = intra_orbs_hop + intre_orbs_hop
-        return unit_ISLs_distance*hop_nid_1_to_nid_2
+        min_hop_nid_1_to_nid_2_not_cross_last_to_first = (node2_orbs-node1_orbs) +  min((node1_id_in_orbs-node2_id_in_orbs)%num_sats_per_orbs,(node2_id_in_orbs-node1_id_in_orbs)%num_sats_per_orbs)
+
+        min_hop_nid_1_to_nid_2_cross_last_to_first = (node1_orbs-node2_orbs)% num_orbs + \
+                        min((node1_id_in_orbs - shift_between_last_and_first -node2_id_in_orbs)%num_sats_per_orbs,(node2_id_in_orbs + shift_between_last_and_first -node1_id_in_orbs)%num_sats_per_orbs)
+        return min(min_hop_nid_1_to_nid_2_not_cross_last_to_first,min_hop_nid_1_to_nid_2_cross_last_to_first)
     
     return heuristic_Fuc
 
@@ -61,6 +66,8 @@ def calculate_fstate_shortest_path_without_gs_relaying(
         prev_fstate,
         enable_verbose_logs
 ):
+    # 星链 72*18，相位因子为45，对应最后一个轨道与第一个轨道之间需要 9 偏移
+    shift_between_last_and_first = 9
     
 
     # Calculate shortest path distances
@@ -70,24 +77,38 @@ def calculate_fstate_shortest_path_without_gs_relaying(
     # Forwarding state
     fstate = {}
 
-    # 实例化 astar 的启发函数
-    heuristic_Fuc = node_to_node_cost_estimate(num_orbs,num_sats_per_orbs,num_satellites,sat_net_graph_only_satellites_with_isls)
+    # 实例化 cthulhu 网络
+    print("构建 cthulhu_Grid 图")
+    start = time.time()
+    sat_network_routing_wiht_cthulhu_Grid = cthulhu.Sat_network_routing_wiht_cthulhu_Grid(num_orbs,num_sats_per_orbs,sat_net_graph_only_satellites_with_isls,shift_between_last_and_first)
+    stop = time.time()
+    print(f'构建 cthulhu_Grid 图所花费时间:{stop-start}')
 
-    # 基于 astar 计算路由路径
-    path={}
-    path_len={}
-    for src in range(num_satellites):
-        for dst in range(num_satellites):
-            path[f'{src}-{dst}']=nx.astar_path(sat_net_graph_only_satellites_with_isls, src, dst, heuristic=heuristic_Fuc, weight='weight')
-            path_len[f'{src}-{dst}'] = nx.astar_path_length(sat_net_graph_only_satellites_with_isls, src,dst, heuristic=heuristic_Fuc, weight='weight')
-    print(f'time_since_epoch_ns:{time_since_epoch_ns/1e9} seconds, astar calculation is completed')
+    print("根据 cthulhu_Grid 图， 获得每对节点的路径，以及代价")
+    cthulhu_Grid_path = {}
+    cthulhu_Grid_path_len = {}
+    start = time.time()
+    for i in range(num_orbs*num_sats_per_orbs):
+        for j in  range(num_orbs*num_sats_per_orbs):
+            i_to_j_path,i_to_j__path_len = sat_network_routing_wiht_cthulhu_Grid.path_a_to_b(i,j)
+            cthulhu_Grid_path[(i,j)] = i_to_j_path
+            cthulhu_Grid_path_len[(i,j)] = i_to_j__path_len
+    stop = time.time()
+    print(f'根据 cthulhu_Grid 图获得任意节点对路由所花费时间:{stop-start}')
+    print(f'根据 cthulhu_Grid 图获得单源节点对路由所花费时间:{(stop-start)/num_orbs/num_sats_per_orbs}')
+
+    # 实例化卫星跳数估算函数
+    heuristic_Fuc = node_to_node_cost_estimate(num_orbs,num_sats_per_orbs,num_satellites,shift_between_last_and_first)
+
+    print(f'time_since_epoch_ns:{time_since_epoch_ns/1e9} seconds, cthulhu calculation is completed')
     
+
     # Now write state to file for complete graph
     output_filename = output_dynamic_state_dir + "/fstate_" + str(time_since_epoch_ns) + ".txt"
     if enable_verbose_logs:
         print("  > Writing forwarding state to: " + output_filename)
     with open(output_filename, "w+") as f_out:
-
+        
         # 计算源节点为卫星，目的节点为地面站的路由表
         for curr in range (num_satellites):
             for dst_gid in range(num_ground_stations):
@@ -104,7 +125,7 @@ def calculate_fstate_shortest_path_without_gs_relaying(
                             dst_sat = curr
                             break
 
-                    # 当前卫星为目标卫星，直接转发到地面，否则通过 astar 算法确定下一跳
+                    # 当前卫星为目标卫星，直接转发到地面，否则通过 cthulhu_grid 确定下一跳
                     if curr == dst_sat and dst_sat!=-1:
                         next_hop_decision = (
                             dst_gs_node_id,
@@ -115,9 +136,9 @@ def calculate_fstate_shortest_path_without_gs_relaying(
                         path_m =[]
                         distance_m = math.inf
                         for possible_dst_sats in ground_station_satellites_in_range_candidates[dst_gid]:
-                            if path_len[f'{curr}-{possible_dst_sats[1]}'] < distance_m:
-                                path_m = path[f'{curr}-{possible_dst_sats[1]}']
-                                distance_m = path_len[f'{curr}-{possible_dst_sats[1]}']
+                            if heuristic_Fuc(curr,possible_dst_sats[1]) < distance_m:
+                                path_m = cthulhu_Grid_path[(curr,possible_dst_sats[1])]
+                                distance_m = heuristic_Fuc(curr,possible_dst_sats[1])
                         
                         if not math.isinf(distance_m):
                             next_hop_decision = (
@@ -144,14 +165,16 @@ def calculate_fstate_shortest_path_without_gs_relaying(
                     dst_gs_node_id = num_satellites + dst_gid
                     # 默认为源地面站无可接入卫星，或目标地面站无可达卫星，即 next_hop_decision 均为 -1
                     next_hop_decision = (-1, -1, -1)
+
+                    # 若源地面站与目的地面站均有可达卫星
                     if len(ground_station_satellites_in_range_candidates[src_gid])>0 and len(ground_station_satellites_in_range_candidates[dst_gid])>0:
                         path_m =[]
                         distance_m = math.inf
                         for possible_src_sats in ground_station_satellites_in_range_candidates[src_gid]:
                             for possible_dst_sats in ground_station_satellites_in_range_candidates[dst_gid]:
-                                if path_len[f'{possible_src_sats[1]}-{possible_dst_sats[1]}'] < distance_m:
-                                    path_m = path[f'{possible_src_sats[1]}-{possible_dst_sats[1]}']
-                                    distance_m = path_len[f'{possible_src_sats[1]}-{possible_dst_sats[1]}']
+                                if heuristic_Fuc(possible_src_sats[1],possible_dst_sats[1] )< distance_m:
+                                    path_m = cthulhu_Grid_path[(possible_src_sats[1],possible_dst_sats[1] )]
+                                    distance_m = heuristic_Fuc(possible_src_sats[1],possible_dst_sats[1] )
                         if not math.isinf(distance_m):
                             next_hop_decision = (
                                 path_m[0],

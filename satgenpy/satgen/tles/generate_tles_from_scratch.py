@@ -53,18 +53,24 @@ def generate_tles_from_scratch_with_sgp(
         # <TLE line 1>
         # <TLE line 2>
         satellite_counter = 0
+        # liu:
+        F = 45 # 相位因子
+        delta_f = 360.0 * F / (num_sats_per_orbit * num_orbits) # 相位差
+        
         for orbit in range(0, num_orbits):
 
             # Orbit-dependent
             raan_degree = orbit * 360.0 / num_orbits
-            orbit_wise_shift = 0
-            if orbit % 2 == 1:
-                if phase_diff:
-                    orbit_wise_shift = 360.0 / (num_sats_per_orbit * 2.0)
+            # orbit_wise_shift = 0
+            # if orbit % 2 == 1:
+            #     if phase_diff:
+            #         orbit_wise_shift = 360.0 / (num_sats_per_orbit * 2.0)
+            orbit_wise_shift = orbit * delta_f
 
             # For each satellite in the orbit
             for n_sat in range(0, num_sats_per_orbit):
-                mean_anomaly_degree = orbit_wise_shift + (n_sat * 360 / num_sats_per_orbit)
+                # mean_anomaly_degree = orbit_wise_shift + (n_sat * 360 / num_sats_per_orbit)
+                mean_anomaly_degree = (orbit_wise_shift + (n_sat * 360 / num_sats_per_orbit)) % 360
 
                 # Epoch is set to the year 2000
                 # This conveniently in TLE format gives 00001.00000000
@@ -154,33 +160,42 @@ def generate_tles_from_scratch_manual(
         # <TLE line 1>
         # <TLE line 2>
         satellite_counter = 0
+
+        # liu:
+        F = 45 # 相位因子
+        delta_f = 360.0 * F / (num_sats_per_orbit * num_orbits) # 相位差
+        
         for orbit in range(0, num_orbits):
 
             # Orbit-dependent
             raan_degree = orbit * 360.0 / num_orbits
-            orbit_wise_shift = 0
-            if orbit % 2 == 1:
-                if phase_diff:
-                    orbit_wise_shift = 360.0 / (num_sats_per_orbit * 2.0)
+            # orbit_wise_shift = 0
+            # if orbit % 2 == 1:
+            #     if phase_diff:
+            #         orbit_wise_shift = 360.0 / (num_sats_per_orbit * 2.0)
+            orbit_wise_shift = orbit * delta_f
 
             # For each satellite in the orbit
             for n_sat in range(0, num_sats_per_orbit):
-                mean_anomaly_degree = orbit_wise_shift + (n_sat * 360 / num_sats_per_orbit)
+                # mean_anomaly_degree = orbit_wise_shift + (n_sat * 360 / num_sats_per_orbit)
+                # liu:
+                mean_anomaly_degree = (orbit_wise_shift + (n_sat * 360 / num_sats_per_orbit)) % 360
 
                 # Epoch is 2000-01-01 00:00:00, which is 00001 in ddyyy format
                 # See also: https://www.celestrak.com/columns/v04n03/#FAQ04
                 tle_line1 = "1 %05dU 00000ABC 00001.00000000  .00000000  00000-0  00000+0 0    0" % (
                     satellite_counter + 1
                 )
+                # liu: 第一行里面只有一个卫星编号是关键的，别的都是默认
 
                 tle_line2 = "2 %05d %s %s %s %s %s %s    0" % (
                     satellite_counter + 1,
-                    ("%3.4f" % inclination_degree).rjust(8),
-                    ("%3.4f" % raan_degree).rjust(8),
-                    ("%0.7f" % eccentricity)[2:],
-                    ("%3.4f" % arg_of_perigee_degree).rjust(8),
-                    ("%3.4f" % mean_anomaly_degree).rjust(8),
-                    ("%2.8f" % mean_motion_rev_per_day).rjust(11),
+                    ("%3.4f" % inclination_degree).rjust(8), # liu:轨道面与赤道面的夹角，直接传参
+                    ("%3.4f" % raan_degree).rjust(8), ## 升交点赤经，计算得到，应该不改，升交点赤经是指卫星由南到北穿过地球赤道平面时，与地球赤道平面的交点  经度47.2796 纬度0
+                    ("%0.7f" % eccentricity)[2:], # 轨道偏心率，圆形为0，直接传参
+                    ("%3.4f" % arg_of_perigee_degree).rjust(8), # 近地点幅角，直接传参
+                    ("%3.4f" % mean_anomaly_degree).rjust(8), ## 平近点角，应该主要改这个
+                    ("%2.8f" % mean_motion_rev_per_day).rjust(11), # 每天环绕地球的圈数，直接传参
                 )
 
                 # Append checksums

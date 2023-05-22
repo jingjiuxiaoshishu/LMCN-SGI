@@ -55,7 +55,7 @@ MAX_GSL_LENGTH_M = math.sqrt(math.pow(SATELLITE_CONE_RADIUS_M, 2) + math.pow(ALT
 MAX_ISL_LENGTH_M = 2 * math.sqrt(math.pow(EARTH_RADIUS + ALTITUDE_M, 2) - math.pow(EARTH_RADIUS + 80000, 2))
 
 NUM_ORBS = 72
-NUM_SATS_PER_ORB = 22
+NUM_SATS_PER_ORB = 18
 INCLINATION_DEGREE = 53
 
 ################################################################
@@ -83,7 +83,7 @@ def main():
         print("Must supply exactly six arguments")
         print("Usage: python main_starlink_550.py [duration (s)] [time step (ms)] "
               "[isls_plus_grid / isls_none] "
-              "[ground_stations_{top_100, paris_moscow_grid}] "
+              "[ground_stations_{top_100, paris_moscow_grid,starlink}] "
               "[algorithm_{free_one_only_over_isls, free_one_only_gs_relays, paired_many_only_over_isls}] "
               "[num threads]")
         exit(1)

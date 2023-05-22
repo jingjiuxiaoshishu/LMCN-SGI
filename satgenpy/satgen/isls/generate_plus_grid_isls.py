@@ -39,16 +39,22 @@ def generate_plus_grid_isls(output_filename_isls, n_orbits, n_sats_per_orbit, is
     list_isls = []
     for i in range(n_orbits):
         for j in range(n_sats_per_orbit):
-            sat = i * n_sats_per_orbit + j
+            # 对于最后一个轨道，0和1278距离太远，超出星间链路最大长度，同时不满足预期构型
+            # 查看TLEs文件，与0号卫星最近的为1287，平近点角为347.5000，相位差为12.5°，正好为一个delta_f
+            # 因此对于最后一个轨道增加一个isl_shift，使得0号卫星与1287号卫星相连
+            if i == n_orbits - 1: # 最后一个轨道
+                isl_shift = 9
 
-            # Link to the next in the orbit
+            sat = i * n_sats_per_orbit + j  # 第i个轨道上第j颗卫星
+
+            # 与相邻卫星建立链路
             sat_same_orbit = i * n_sats_per_orbit + ((j + 1) % n_sats_per_orbit)
             sat_adjacent_orbit = ((i + 1) % n_orbits) * n_sats_per_orbit + ((j + isl_shift) % n_sats_per_orbit)
 
-            # Same orbit
+            # 同轨链路
             list_isls.append((idx_offset + min(sat, sat_same_orbit), idx_offset + max(sat, sat_same_orbit)))
 
-            # Adjacent orbit
+            # 异轨链路
             list_isls.append((idx_offset + min(sat, sat_adjacent_orbit), idx_offset + max(sat, sat_adjacent_orbit)))
 
     with open(output_filename_isls, 'w+') as f:

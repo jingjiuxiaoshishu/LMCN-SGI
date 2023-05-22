@@ -113,11 +113,11 @@ def generate_single_arg_list(
         print_logs
 ):
     # Directory
-    output_dynamic_state_dir = output_generated_data_dir + "/" + name + "/dynamic_state_" + str(time_step_ns/1000/1000) \
+    output_dynamic_state_dir = output_generated_data_dir + "/" + name + "/dynamic_state_" + str(int(time_step_ns/1000/1000)) \
                                + "ms_for_" + str(duration_s) + "s"
     # 若没有该输出文件夹，则新建文件夹
-    if not os.path.isdir(output_dynamic_state_dir):
-        os.makedirs(output_dynamic_state_dir)
+    # if not os.path.isdir(output_dynamic_state_dir):
+    os.makedirs(output_dynamic_state_dir,exist_ok=True)
 
 
     # Variables (load in for each thread such that they don't interfere)
