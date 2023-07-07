@@ -20,6 +20,7 @@ class Sat_wiht_cthulhu_Grid:
         self.num_sats_per_orbs = num_sats_per_orbs
         self.orb_id = sid // num_sats_per_orbs
         self.sat_id_in_orb = sid % num_sats_per_orbs
+        
         self.graph_cal_by_tles = graph_cal_by_tles
         self.shift_between_last_and_first = shift_between_last_and_first
         self.cthulhu_Grid_node_index = {}

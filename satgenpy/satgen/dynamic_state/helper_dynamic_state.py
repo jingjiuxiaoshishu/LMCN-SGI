@@ -99,7 +99,6 @@ def worker(args) :
     )
 
 
-
 def generate_single_arg_list(
         output_generated_data_dir,
         name,
@@ -151,6 +150,7 @@ def generate_single_arg_list(
         dynamic_state_algorithm,
         print_logs
     )
+
 
 def generate_all_args_list(
         output_generated_data_dir, num_threads, name, time_step_ms, duration_s,
