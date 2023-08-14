@@ -32,23 +32,42 @@ dynamic_state_update_interval_ns = dynamic_state_update_interval_ms * 1000 * 100
 simulation_end_time_ns = simulation_end_time_s * 1000 * 1000 * 1000
 dynamic_state = "dynamic_state_" + str(dynamic_state_update_interval_ms) + "ms_for_" + str(simulation_end_time_s) + "s"
 
+# # Chosen pairs:
+# # > Rio de Janeiro (1174) to St. Petersburg (1229)
+# # > Manila (1173) to Dalian (1241)
+# # > Istanbul (1170) to Nairobi (1252)
+# # > Paris (1180 (1156 for the Paris-Moscow GS relays)) to Moscow (1177 (1232 for the Paris-Moscow GS relays))
+# full_satellite_network_isls = "kuiper_630_isls_plus_grid_ground_stations_top_100_algorithm_free_one_only_over_isls"
+# full_satellite_network_gs_relay = "kuiper_630_isls_none_ground_stations_paris_moscow_grid_algorithm_free_one_only_gs_relays"
+# chosen_pairs = [
+#     ("kuiper_630_isls", 1174, 1229, "TcpNewReno", full_satellite_network_isls),
+#     ("kuiper_630_isls", 1174, 1229, "TcpVegas", full_satellite_network_isls),
+#     ("kuiper_630_isls", 1173, 1241, "TcpNewReno", full_satellite_network_isls),
+#     ("kuiper_630_isls", 1173, 1241, "TcpVegas", full_satellite_network_isls),
+#     ("kuiper_630_isls", 1170, 1252, "TcpNewReno", full_satellite_network_isls),
+#     ("kuiper_630_isls", 1170, 1252, "TcpVegas", full_satellite_network_isls),
+#     ("kuiper_630_isls", 1180, 1177, "TcpNewReno", full_satellite_network_isls),
+#     ("kuiper_630_gs_relays", 1156, 1232, "TcpNewReno", full_satellite_network_gs_relay),
+# ]
+
+
 # Chosen pairs:
-# > Rio de Janeiro (1174) to St. Petersburg (1229)
-# > Manila (1173) to Dalian (1241)
-# > Istanbul (1170) to Nairobi (1252)
-# > Paris (1180 (1156 for the Paris-Moscow GS relays)) to Moscow (1177 (1232 for the Paris-Moscow GS relays))
-full_satellite_network_isls = "kuiper_630_isls_plus_grid_ground_stations_top_100_algorithm_free_one_only_over_isls"
-full_satellite_network_gs_relay = "kuiper_630_isls_none_ground_stations_paris_moscow_grid_algorithm_free_one_only_gs_relays"
+# > Itaboraí(133) to Kaunas(116)            1296 + 133 = 1429     1296 + 116 = 1412
+# > Apra Heights GU(120) to Ajigaura(162)   1296 + 120 = 1416     1296 + 162 = 1458
+# > Villenave d’Ornon(72) to Lekki(152)     1296 + 72 = 1368      1296 + 152 = 1448
+
+full_satellite_network_isls = "starlink_550_isls_plus_grid_ground_stations_starlink_algorithm_free_one_only_over_isls"
+
 chosen_pairs = [
-    ("kuiper_630_isls", 1174, 1229, "TcpNewReno", full_satellite_network_isls),
-    ("kuiper_630_isls", 1174, 1229, "TcpVegas", full_satellite_network_isls),
-    ("kuiper_630_isls", 1173, 1241, "TcpNewReno", full_satellite_network_isls),
-    ("kuiper_630_isls", 1173, 1241, "TcpVegas", full_satellite_network_isls),
-    ("kuiper_630_isls", 1170, 1252, "TcpNewReno", full_satellite_network_isls),
-    ("kuiper_630_isls", 1170, 1252, "TcpVegas", full_satellite_network_isls),
-    ("kuiper_630_isls", 1180, 1177, "TcpNewReno", full_satellite_network_isls),
-    ("kuiper_630_gs_relays", 1156, 1232, "TcpNewReno", full_satellite_network_gs_relay),
+    ("starlink_550_isls", 1429, 1412, "TcpNewReno", full_satellite_network_isls),
+    ("starlink_550_isls", 1429, 1412, "TcpVegas", full_satellite_network_isls),
+    ("starlink_550_isls", 1416, 1458, "TcpNewReno", full_satellite_network_isls),
+    ("starlink_550_isls", 1416, 1458, "TcpVegas", full_satellite_network_isls),
+    ("starlink_550_isls", 1368, 1448, "TcpNewReno", full_satellite_network_isls),
+    ("starlink_550_isls", 1368, 1448, "TcpVegas", full_satellite_network_isls),
 ]
+
+# TCP Reno和Vegas应该是两种拥塞控制算法
 
 
 def get_tcp_run_list():
@@ -61,7 +80,7 @@ def get_tcp_run_list():
                 "dynamic_state": dynamic_state,
                 "dynamic_state_update_interval_ns": dynamic_state_update_interval_ns,
                 "simulation_end_time_ns": simulation_end_time_ns,
-                "data_rate_megabit_per_s": 10.0,
+                "data_rate_megabit_per_s": 10.0,    # liu: 这里要怎么改
                 "queue_size_pkt": 100,
                 "enable_isl_utilization_tracking": enable_isl_utilization_tracking,
                 "isl_utilization_tracking_interval_ns": isl_utilization_tracking_interval_ns,

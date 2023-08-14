@@ -1,25 +1,12 @@
 import ephem
-from mudule_in_hypatia import read_ground_stations_extended
-from mudule_in_hypatia import read_tles
-
-class Gs_with_gid():
-    def __init__(self, gs):
-        self.gid = gs["gid"]
-        self.ground_station =ephem.Observer()
-        self.ground_station.lat = gs["latitude_degrees_str"]
-        self.ground_station.lon = gs["longitude_degrees_str"]
-
-
-class Satellites_with_sid:
-    def __init__(self, sid, satellite):
-        self.sid = sid
-        self.satellite = satellite
-
+from satgen.ground_stations import read_ground_stations_extended
+from satgen.tles import read_tles
 
 class Visible_time_helper:
     def __init__(self, ground_stations,satellites,min_elevation,epoch,time_step, sim_duration):
         self.epoch =epoch
-        self.time_step = time_step
+        # # 输入单位为 ms，需转化为 s
+        self.time_step = time_step /1000
         self.sim_duration = sim_duration
         # super().__init__(epoch,time_step, sim_duration)
         self.min_elevation = min_elevation
@@ -54,7 +41,7 @@ class Visible_time_helper:
                     i = i + self.time_step
                 else:
                     break
-            return [start, end]
+            return [start, end]    
         else:
             return [-1, -1]
 

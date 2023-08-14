@@ -4,7 +4,7 @@ import pickle
 import ephem
 import networkx as nx
 import math
-from scheduler_node import Scheduler_node
+from .scheduler_node import Scheduler_node
 from typing import Dict
 
 from satgen.distance_tools import *
@@ -73,7 +73,7 @@ class Satellite_node(Scheduler_node):
         self.max_seq = 1000000000
 
         # hello_interval: 100 ms
-        # fail_edges_update_interval = 2 s
+        # fail_edges_update_interval = 5 s
         self.hello_interval = 0.1
         self.fail_edges_broadcast_interval = 5
         self.slot_num_hello_interval = math.ceil(self.hello_interval/self.time_step)
@@ -370,16 +370,32 @@ class Satellite_node(Scheduler_node):
         next_hop = -1
         cost = math.inf
         for sid in self.gsl[gid]:
-            if sid != -1:
+            if sid == self.sid:
+                next_hop = gid
+                cost = 0
+            elif sid != -1:
                 if self.forward_cost_to_sats[sid] < cost:
-                    next_hop = sid
+                    next_hop = self.forward_table_to_sats[sid]
                     cost = self.forward_cost_to_sats[sid]
-        self.forward_table_to_gs[gid] = [next_hop]
+        self.forward_table_to_gs[gid] = next_hop
         self.forward_cost_to_gs[gid] = cost + 1
+        
 
     def init_forward_table_to_gs(self,len_gs):
         for i in range(len_gs):
             self.gsl[i] = [-1,-1]
+            self.forward_table_to_gs[i] = {}
+            self.forward_cost_to_gs[i] = {}
+            for j in range(len_gs):
+                if i!=j:
+                    self.forward_table_to_gs[i][j] = -1
+                    self.forward_cost_to_gs[i][j] = -1
+                    
+    def init_forward_table_to_sats(self,len_sats):
+        for i in  range(len_sats):
+            if i != self.sid:
+                self.forward_table_to_sats[i] = -1
+                self.forward_cost_to_sats[i] = -1
 
 
 

@@ -12,11 +12,12 @@ class Scheduler_node:
         '''
 
         self.epoch = epoch
-        self.time_step = time_step
+        # 输入单位为 ms，需转化为 s
+        self.time_step = time_step / 1000
         self.sim_duration = sim_duration
         self.curr_slot = 0
         # 总共仿真的时隙数量
-        self.num_time_slot = math.ceil(sim_duration/time_step)
+        self.num_time_slot = math.ceil(sim_duration/self.time_step)
         # 初始化time_event_scheduler 为[[],…,[]]
         self.time_event_scheduler = [[] for _ in range(self.num_time_slot)]
         ' time_event_scheduler 的元素为 func,arg* '

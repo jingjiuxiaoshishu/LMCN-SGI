@@ -1,8 +1,7 @@
 import copy
 import ephem
-from  scheduler_node import Scheduler_node
+from  .scheduler_node import Scheduler_node
 
-from  scheduler_node import Scheduler_node
 class Sat_selector(Scheduler_node):
     def __init__(self,visible_times,num_orbs,num_sats_per_orbs,shift_between_last_and_first,epoch,time_step, sim_duration):
         super().__init__(epoch,time_step, sim_duration)
@@ -84,7 +83,8 @@ class Sat_selector(Scheduler_node):
             if now >= visible_time[0] and now <= visible_time[1]:
                 visible_time_left = (visible_time[1] - now)/ephem.second
                 slot_visible_time_left = round(visible_time_left/self.time_step)
-                sats_visible[sid] = slot_visible_time_left
+                # 默认 + 1  个时隙，以便处理只有一个时隙可见的情况
+                sats_visible[sid] = slot_visible_time_left + 1
         return sats_visible
 
     def get_sid_with_longest_visible_time_in_group(self,group,sats_visible):
