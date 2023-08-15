@@ -92,27 +92,27 @@ def generate_dynamic_state(
                                     sat_net_graph_only_satellites_with_isls,ephem_epoch,time_step_ms, simulation_end_time_s)
         satellite_nodes.append(satellite_node)
 
-    # # 建立地面站观察者
-    # print("\n ground_observers 建立中")    
-    # ground_observers = []
-    # for ground_station in ground_stations:
-    #     ground_observer = ephem.Observer()
-    #     ground_observer.lat = ground_station["latitude_degrees_str"]
-    #     ground_observer.lon = ground_station["longitude_degrees_str"]
-    #     ground_observers.append(ground_observer)
+    # 建立地面站观察者
+    print("\n ground_observers 建立中")    
+    ground_observers = []
+    for ground_station in ground_stations:
+        ground_observer = ephem.Observer()
+        ground_observer.lat = ground_station["latitude_degrees_str"]
+        ground_observer.lon = ground_station["longitude_degrees_str"]
+        ground_observers.append(ground_observer)
         
-    # print("\n 可见时间计算中,请注意最长仿真时间不要超过卫星的周期")
-    # visible_time_helper = Visible_time_helper(ground_observers, satellites, 25, ephem_epoch,
-    #                                           time_step_ms, simulation_end_time_s)
+    print("\n 可见时间计算中,请注意最长仿真时间不要超过卫星的周期")
+    visible_time_helper = Visible_time_helper(ground_observers, satellites, 25, ephem_epoch,
+                                              time_step_ms, simulation_end_time_s)
     
-    # import pickle
-    # visible_times = visible_time_helper.visible_times
-    # with open("visible_times.pkl","wb") as f:
-    #     pickle.dump(visible_times,f)
-
     import pickle
-    with open("visible_times.pkl","rb") as f:
-        visible_times = pickle.load(f)
+    visible_times = visible_time_helper.visible_times
+    with open("visible_times.pkl","wb") as f:
+        pickle.dump(visible_times,f)
+
+    # import pickle
+    # with open("visible_times.pkl","rb") as f:
+    #     visible_times = pickle.load(f)
 
     print("\n 建立选星器，并初始化 gsl ")
     shift_between_last_and_first = 8
@@ -121,9 +121,8 @@ def generate_dynamic_state(
 
     print("\n 添加更新事件，表明 epoch 需要对每个 gs 的 gsl 更新两次 ")
     for gid,gsl in sat_selector.gsls.items():
-        # 添加更新事件，表明 epoch 需要对每个 gs 的 gsl 更新两次
-        for i in range(2):
-            sat_selector.add_gsl_update_event(gid,i,0)
+        # 只更新一条 gsl 
+        sat_selector.add_gsl_update_event(gid,0,0)
 
     print(f"\n 初始化 gsl，此时 gsl 均为 -1 \n 初始化 forward_table_to_gsf" "\n 初始化 forward_table_to_sats"  "\n 初始化 init_state_of_edges")
     for satellite_node in satellite_nodes:

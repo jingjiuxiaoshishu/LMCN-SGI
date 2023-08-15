@@ -21,61 +21,6 @@ class Sat_selector(Scheduler_node):
     def check_gsl(self,gid,sid):
         pass
 
-    def classificate(self, sids_visible):
-        unclassified_sat_index = {}
-        group_1 = []
-        group_2 = []
-        orbs_of_group_1 = {}
-        for sid in sids_visible:
-            unclassified_sat_index[sid]= 1
-
-        if not unclassified_sat_index:
-            return [], []
-
-        orbs_of_sids_visible = [False for _ in range(self.num_orbs)]
-        for sid in sids_visible:
-            x, _ = self.get_index_from_sid(sid)
-            orbs_of_sids_visible[x] = True
-
-        i = 0
-        while True:
-            if orbs_of_sids_visible[i]:
-                for j in range(3):
-                    orbs_of_group_1[(i+j) % self.num_orbs] = 1
-                if i in orbs_of_group_1:
-                    i = (i+1) % self.num_orbs
-                else:
-                    break
-            else:
-                if orbs_of_group_1:
-                    break
-                else:
-                    i = i = (i+1) % self.num_orbs
-
-        for i in  range(3):
-            if i in orbs_of_group_1:
-                while True:
-                    if orbs_of_sids_visible[i]:
-                        for j in range(3):
-                            orbs_of_group_1[(i - j) % self.num_orbs] = 1
-                    if i in orbs_of_group_1:
-                        i = (i - 1) % self.num_orbs
-                    else:
-                        i = (i - 1) % self.num_orbs
-                        break
-                break
-
-
-        for sid in sids_visible:
-            x, _ = self.get_index_from_sid(sid)
-            if x in orbs_of_group_1:
-                group_1.append(sid)
-                del unclassified_sat_index[sid]
-
-        if unclassified_sat_index:
-            group_2 = list(unclassified_sat_index.keys())
-        return group_1,group_2
-
     def get_sats_visible(self,gid):
         sats_visible = {}
         now = ephem.Date(self.epoch + self.curr_slot * self.time_step * ephem.second)
@@ -101,31 +46,7 @@ class Sat_selector(Scheduler_node):
         if not sats_visible:
             return -1,-1
 
-        # 获取不更新的 gsl 的 index
-        gsl_keep = 1 - gsl_to_update
-
-        group_1,group_2 = self.classificate( list(sats_visible.keys()) )\
-        # 根据 group_2 是否非空分情况处理
-        if group_2:
-            if self.gsls[gid][gsl_keep] == -1:
-                sid_1 = sid_linked_to = self.get_sid_with_longest_visible_time_in_group(group_1,sats_visible)
-                sid_2 = sid_linked_to = self.get_sid_with_longest_visible_time_in_group(group_2, sats_visible)
-                if sats_visible[sid_1] < sats_visible[sid_1]:
-                    sid_linked_to = sid_2
-                else:
-                    sid_linked_to = sid_1
-            elif self.gsls[gid][gsl_keep] in group_1:
-                sid_linked_to = self.get_sid_with_longest_visible_time_in_group(group_2,sats_visible)
-            else:
-                sid_linked_to = self.get_sid_with_longest_visible_time_in_group(group_1, sats_visible)
-        else:
-            if self.gsls[gid][gsl_keep] == -1:
-                sid_linked_to = self.get_sid_with_longest_visible_time_in_group(group_1, sats_visible)
-            else:
-                temp = copy.deepcopy(group_1)
-                temp.remove(self.gsls[gid][gsl_keep])
-                sid_linked_to = self.get_sid_with_longest_visible_time_in_group(temp, sats_visible)
-
+        sid_linked_to = self.get_sid_with_longest_visible_time_in_group(list(sats_visible.keys()), sats_visible)
         self.gsls[gid][gsl_to_update] = sid_linked_to
 
         if sid_linked_to == -1:
@@ -192,9 +113,8 @@ if __name__ == "__main__":
     sim_duration = 400
     sat_selector = Sat_selector(visible_times,num_orbs,num_sats_per_orbs,shift_between_last_and_first,epoch,time_step, sim_duration)
     for gid,gsl in sat_selector.gsls.items():
-        # 对每个 gs 的 gsl 更新两次
-        for i in range(2):
-            sat_selector.add_gsl_update_event(gid,i,0)
+        # 只更新一条的 gsl
+        sat_selector.add_gsl_update_event(gid,0,0)
     for i in range(sat_selector.num_time_slot):
         print(i)
         sat_selector.process()
