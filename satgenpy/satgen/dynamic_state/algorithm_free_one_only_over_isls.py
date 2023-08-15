@@ -26,8 +26,6 @@ from .fstate_calculation import *
 def algorithm_free_one_only_over_isls(
         output_dynamic_state_dir,
         time_since_epoch_ns,
-        num_orbs,
-        num_sats_per_orbs,
         satellites,
         ground_stations,
         sat_net_graph_only_satellites_with_isls,
@@ -102,8 +100,6 @@ def algorithm_free_one_only_over_isls(
     fstate = calculate_fstate_shortest_path_without_gs_relaying(
         output_dynamic_state_dir,
         time_since_epoch_ns,
-        num_orbs,
-        num_sats_per_orbs,
         len(satellites),
         len(ground_stations),
         sat_net_graph_only_satellites_with_isls,
