@@ -368,6 +368,14 @@ class Satellite_node(Scheduler_node):
         self.update_forward_table_to_gs(gid)
 
     def update_forward_table_to_gs(self,gid):
+        pre_gsl = self.gsl_used_in_pre_forward_table_to_gs[gid]
+        # 如果前面的 gsl 还在且 gsl 链接的卫星可达，保留原链接
+        if pre_gsl != gid:
+            if pre_gsl != -1 and pre_gsl in self.gsl[gid] and self.forward_table_to_sats[pre_gsl]!=-1:
+                self.forward_table_to_gs[gid] = self.forward_table_to_sats[pre_gsl]
+                self.forward_cost_to_gs[gid] = self.forward_cost_to_sats[pre_gsl] + 1
+                return 0
+        # 否则进入路由更新
         next_hop = -1
         cost = math.inf
         for sid in self.gsl[gid]:
@@ -387,7 +395,7 @@ class Satellite_node(Scheduler_node):
             self.gsl[i] = [-1,-1]
             self.forward_table_to_gs[i] = -1
             self.forward_cost_to_gs[i] = -1
-
+            self.gsl_used_in_pre_forward_table_to_gs[i] = -1
                     
     def init_forward_table_to_sats(self,len_sats):
         for i in  range(len_sats):

@@ -361,24 +361,31 @@ def generate_dynamic_state_distribute(
     for gid_1 in range(len(gsls)):
         for gid_2 in range(len(gsls)):
             if gid_1 != gid_2:
-                next_hop_1 =  prev_fstate[(gid_1+len(satellite_nodes),gid_2+len(satellite_nodes))]
-                next_hop_2 =  prev_fstate[(gid_2+len(satellite_nodes),gid_1+len(satellite_nodes))]
-                if (next_hop_1 in satellite_nodes[next_hop_1].gsl[gid_1]) and next_hop_1!=-1 and (next_hop_2 in satellite_nodes[next_hop_2].gsl[gid_2]) and next_hop_2!=-1:
+                if prev_fstate:
+                    next_hop_1 =  prev_fstate[(gid_1+len(satellite_nodes),gid_2+len(satellite_nodes))][0]
+                    next_hop_2 =  prev_fstate[(gid_2+len(satellite_nodes),gid_1+len(satellite_nodes))][0]
+                    if next_hop_1 == -1 or next_hop_2 == -1:
+                        link_exist = -1
+                    else:
+                        link_exist = satellite_nodes[next_hop_1].forward_table_to_sats[next_hop_2] 
+                else:
+                    next_hop_1 =  -1
+                    next_hop_2 =  -1
+                    link_exist = -1
+                # 如果两个 pre_gsl 均可用，且两颗接入卫星之间有路径。
+                if (next_hop_1 in satellite_nodes[next_hop_1].gsl[gid_1]) and next_hop_1!=-1 and (next_hop_2 in satellite_nodes[next_hop_2].gsl[gid_2]) and next_hop_2!=-1 and link_exist!=-1:
+                    forward_table_gs_to_gs[gid_1][gid_2] = next_hop_1
+                    forward_cost_gs_to_gs[gid_1][gid_2] = satellite_nodes[next_hop_1].forward_cost_to_gs[gid_2] + 1
+                else:
+                    next_hop = -1
+                    cost = math.inf
+                    for sid in sat_selector.gsls[gid_1]:
+                        if sid != -1:
+                            if satellite_nodes[sid].forward_cost_to_gs[gid_2] < cost:
+                                next_hop = sid
+                                cost = satellite_nodes[sid].forward_cost_to_gs[gid_2]
                     forward_table_gs_to_gs[gid_1][gid_2] = next_hop
                     forward_cost_gs_to_gs[gid_1][gid_2] = cost + 1
-
-
-
-
-                next_hop = -1
-                cost = math.inf
-                for sid in sat_selector.gsls[gid_1]:
-                    if sid != -1:
-                        if satellite_nodes[sid].forward_cost_to_gs[gid_2] < cost:
-                            next_hop = sid
-                            cost = satellite_nodes[sid].forward_cost_to_gs[gid_2]
-                forward_table_gs_to_gs[gid_1][gid_2] = next_hop
-                forward_cost_gs_to_gs[gid_1][gid_2] = cost + 1
 
     # Forwarding state
     fstate = {}
