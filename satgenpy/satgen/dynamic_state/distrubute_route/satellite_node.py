@@ -67,6 +67,7 @@ class Satellite_node(Scheduler_node):
 
         self.forward_table_to_gs = {}
         self.forward_cost_to_gs = {}
+        self.gsl_used_in_pre_forward_table_to_gs = {}
 
 
         self.seq = 0
@@ -384,12 +385,9 @@ class Satellite_node(Scheduler_node):
     def init_forward_table_to_gs(self,len_gs):
         for i in range(len_gs):
             self.gsl[i] = [-1,-1]
-            self.forward_table_to_gs[i] = {}
-            self.forward_cost_to_gs[i] = {}
-            for j in range(len_gs):
-                if i!=j:
-                    self.forward_table_to_gs[i][j] = -1
-                    self.forward_cost_to_gs[i][j] = -1
+            self.forward_table_to_gs[i] = -1
+            self.forward_cost_to_gs[i] = -1
+
                     
     def init_forward_table_to_sats(self,len_sats):
         for i in  range(len_sats):

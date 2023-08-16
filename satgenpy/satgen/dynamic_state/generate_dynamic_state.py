@@ -125,7 +125,7 @@ def generate_dynamic_state(
         for i in range(2):
             sat_selector.add_gsl_update_event(gid,i,0)
 
-    print(f"\n 初始化 gsl，此时 gsl 均为 -1 \n 初始化 forward_table_to_gsf" "\n 初始化 forward_table_to_sats"  "\n 初始化 init_state_of_edges")
+    print(f"\n 初始化 gsl，此时 gsl 均为 -1 \n 初始化 forward_table_to_gs" "\n 初始化 forward_table_to_sats"  "\n 初始化 init_state_of_edges")
     for satellite_node in satellite_nodes:
         satellite_node.init_forward_table_to_gs(len(sat_selector.gsls))
         satellite_node.init_forward_table_to_sats(len(satellite_nodes))
@@ -361,6 +361,15 @@ def generate_dynamic_state_distribute(
     for gid_1 in range(len(gsls)):
         for gid_2 in range(len(gsls)):
             if gid_1 != gid_2:
+                next_hop_1 =  prev_fstate[(gid_1+len(satellite_nodes),gid_2+len(satellite_nodes))]
+                next_hop_2 =  prev_fstate[(gid_2+len(satellite_nodes),gid_1+len(satellite_nodes))]
+                if (next_hop_1 in satellite_nodes[next_hop_1].gsl[gid_1]) and next_hop_1!=-1 and (next_hop_2 in satellite_nodes[next_hop_2].gsl[gid_2]) and next_hop_2!=-1:
+                    forward_table_gs_to_gs[gid_1][gid_2] = next_hop
+                    forward_cost_gs_to_gs[gid_1][gid_2] = cost + 1
+
+
+
+
                 next_hop = -1
                 cost = math.inf
                 for sid in sat_selector.gsls[gid_1]:
