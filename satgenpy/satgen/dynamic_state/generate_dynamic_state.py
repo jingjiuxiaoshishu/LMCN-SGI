@@ -83,27 +83,27 @@ def generate_dynamic_state(
                                     sat_net_graph_only_satellites_with_isls,ephem_epoch,time_step_ms, simulation_end_time_s)
         satellite_nodes.append(satellite_node)
 
-    # 建立地面站观察者
-    print("\n ground_observers 建立中")    
-    ground_observers = []
-    for ground_station in ground_stations:
-        ground_observer = ephem.Observer()
-        ground_observer.lat = ground_station["latitude_degrees_str"]
-        ground_observer.lon = ground_station["longitude_degrees_str"]
-        ground_observers.append(ground_observer)
+    # # 建立地面站观察者
+    # print("\n ground_observers 建立中")    
+    # ground_observers = []
+    # for ground_station in ground_stations:
+    #     ground_observer = ephem.Observer()
+    #     ground_observer.lat = ground_station["latitude_degrees_str"]
+    #     ground_observer.lon = ground_station["longitude_degrees_str"]
+    #     ground_observers.append(ground_observer)
         
-    print("\n 可见时间计算中,请注意最长仿真时间不要超过卫星的周期")
-    visible_time_helper = Visible_time_helper(ground_observers, satellites, 25, ephem_epoch,
-                                              time_step_ms, simulation_end_time_s)
+    # print("\n 可见时间计算中,请注意最长仿真时间不要超过卫星的周期")
+    # visible_time_helper = Visible_time_helper(ground_observers, satellites, 25, ephem_epoch,
+    #                                           time_step_ms, simulation_end_time_s)
     
-    import pickle
-    visible_times = visible_time_helper.visible_times
-    with open("visible_times.pkl","wb") as f:
-        pickle.dump(visible_times,f)
-
     # import pickle
-    # with open("visible_times.pkl","rb") as f:
-    #     visible_times = pickle.load(f)
+    # visible_times = visible_time_helper.visible_times
+    # with open("visible_times.pkl","wb") as f:
+    #     pickle.dump(visible_times,f)
+
+    import pickle
+    with open("visible_times.pkl","rb") as f:
+        visible_times = pickle.load(f)
 
     print("\n 建立选星器，并初始化 gsl ")
     shift_between_last_and_first = 8
@@ -137,6 +137,20 @@ def generate_dynamic_state(
 
         
         # sat_net_graph_only_satellites_with_isls 更新
+
+        if time_since_epoch_ns*time_step_ns == 100:
+            import random
+            # 设置随机种子
+            random.seed(42)
+            # 百分之一的坏边
+            print("\n 随机构建坏边，坏边率默认为百分之 1")
+            percentage = 0.01
+            num_fail_edges = int(percentage * len(list_isls))
+            fail_edges = set(random.sample(list_isls, num_fail_edges))
+            with open("fail_edges.pkl","wb") as f:
+                pickle.dump(fail_edges,f) 
+            for fail_edge in fail_edges:
+                sat_net_graph_only_satellites_with_isls[fail_edge[0]][fail_edge[1]]["weight"] = math.inf
         print("\n sat_net_graph_only_satellites_with_isls 更新")
         for src,dst,attrs in sat_net_graph_only_satellites_with_isls.edges(data=True):
             edge = (src,dst)
@@ -393,11 +407,13 @@ def generate_dynamic_state_distribute(
                 next_hop_decision = (-1, -1, -1)
                 if satellite_nodes[curr_sid].forward_cost_to_gs[dst_gid] != math.inf:
                     if satellite_nodes[curr_sid].forward_table_to_gs[dst_gid] != dst_gid:
-                        next_hop_decision=(
-                            satellite_nodes[curr_sid].forward_table_to_gs[dst_gid],
-                            sat_neighbor_to_if[curr_sid,satellite_nodes[curr_sid].forward_table_to_gs[dst_gid]],
-                            sat_neighbor_to_if[satellite_nodes[curr_sid].forward_table_to_gs[dst_gid],curr_sid]
-                        )
+                        # 注意此处当 curr_sid 到 下一跳的实际链路不为坏边时，才会更新路由表
+                        if sat_net_graph_only_satellites_with_isls[curr_sid][satellite_nodes[curr_sid].forward_table_to_gs[dst_gid]]["weight"] != math.inf:
+                            next_hop_decision=(
+                                satellite_nodes[curr_sid].forward_table_to_gs[dst_gid],
+                                sat_neighbor_to_if[curr_sid,satellite_nodes[curr_sid].forward_table_to_gs[dst_gid]],
+                                sat_neighbor_to_if[satellite_nodes[curr_sid].forward_table_to_gs[dst_gid],curr_sid]
+                            )
                     else:
                         next_hop_decision = (
                             dst_gs_node_id,
