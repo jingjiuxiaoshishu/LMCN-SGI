@@ -163,7 +163,28 @@ def generate_dynamic_state_at(
     if enable_verbose_logs:
         print("  > Total ISLs............. " + str(len(list_isls)))
         print("  > Min. ISLs/satellite.... " + str(np.min(num_isls_per_sat)))
-        print("  > Max. ISLs/satellite.... " + str(np.max(num_isls_per_sat)))
+        print("  > Max. ISLs/satellite.... " + str(np.max(num_isls_per_sat)))    
+
+    ################################# 
+    if enable_verbose_logs:
+        print("在 100 s 后 需要将 1 % 的边设置为失效")
+    if time_since_epoch_ns*1000*1000*1000 >= 100:
+        import random
+        # 设置随机种子
+        random.seed(42)
+        # 百分之一的坏边
+        print("\n 随机构建坏边，坏边率默认为百分之 1")
+        percentage = 0.01
+        num_fail_edges = int(percentage * len(list_isls))
+        fail_edges = set(random.sample(list_isls, num_fail_edges))
+        if time_since_epoch_ns*1000*1000*1000 == 100:
+            import pickle
+            with open("fail_edges.pkl","wb") as f:
+                pickle.dump(fail_edges,f) 
+        for fail_edge in fail_edges:
+            sat_net_graph_only_satellites_with_isls[fail_edge[0]][fail_edge[1]]["weight"] = math.inf
+
+        
 
     #################################
 
