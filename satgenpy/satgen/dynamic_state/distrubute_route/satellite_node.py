@@ -378,16 +378,20 @@ class Satellite_node(Scheduler_node):
         # 否则进入路由更新
         next_hop = -1
         cost = math.inf
+        curr_gsl = -1
         for sid in self.gsl[gid]:
             if sid == self.sid:
                 next_hop = gid
                 cost = 0
+                curr_gsl = gid
             elif sid != -1:
                 if self.forward_cost_to_sats[sid] < cost:
                     next_hop = self.forward_table_to_sats[sid]
                     cost = self.forward_cost_to_sats[sid]
+                    curr_gsl = sid
         self.forward_table_to_gs[gid] = next_hop
         self.forward_cost_to_gs[gid] = cost + 1
+        self.gsl_used_in_pre_forward_table_to_gs = curr_gsl
         
 
     def init_forward_table_to_gs(self,len_gs):
