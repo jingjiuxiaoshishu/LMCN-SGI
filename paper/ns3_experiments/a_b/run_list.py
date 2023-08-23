@@ -67,6 +67,12 @@ chosen_pairs = [
     ("starlink_550_isls", 1368, 1448, "TcpVegas", full_satellite_network_isls),
 ]
 
+# chosen_pairs = [
+#     ("starlink_550_isls", 1381, 1452, "TcpNewReno", full_satellite_network_isls),
+#     ("starlink_550_isls", 1407, 1452, "TcpNewReno", full_satellite_network_isls),
+#     ("starlink_550_isls", 1407, 1459, "TcpNewReno", full_satellite_network_isls),
+# ]
+
 # TCP Reno和Vegas应该是两种拥塞控制算法
 
 
