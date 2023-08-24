@@ -75,7 +75,7 @@ class Satellite_node(Scheduler_node):
 
         # hello_interval: 100 ms
         # fail_edges_update_interval = 5 s
-        self.hello_interval = 0.1
+        self.hello_interval = 2
         self.fail_edges_broadcast_interval = 5
         self.slot_num_hello_interval = math.ceil(self.hello_interval/self.time_step)
         self.slot_num_fail_edges_broadcast_interval = math.ceil(self.fail_edges_broadcast_interval / self.time_step)
@@ -391,7 +391,7 @@ class Satellite_node(Scheduler_node):
                     curr_gsl = sid
         self.forward_table_to_gs[gid] = next_hop
         self.forward_cost_to_gs[gid] = cost + 1
-        self.gsl_used_in_pre_forward_table_to_gs = curr_gsl
+        self.gsl_used_in_pre_forward_table_to_gs[gid] = curr_gsl
         
 
     def init_forward_table_to_gs(self,len_gs):
