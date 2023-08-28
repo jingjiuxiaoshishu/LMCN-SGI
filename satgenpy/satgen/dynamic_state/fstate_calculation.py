@@ -1,10 +1,61 @@
 import math
 import networkx as nx
+import time
+from . import cthulhu_grid_routing_algorithm as cthulhu
 
 
+
+
+# 输入： 地面站id、地面站可使卫星列表
+# 输出： (distance_m,sid) 最近卫星的距离和 sid
+def sat_closest_to_gs(
+        gid,
+        ground_station_satellites_in_range_candidates
+):
+    possible_dst_sats = ground_station_satellites_in_range_candidates[gid]
+    return min(possible_dst_sats)
+    
+
+# 实例化卫星跳数估算函数
+# 只估算 ISL 的距离，默认没有节点故障和链路故障
+# 单跳 ISL 距离视为恒定不变，为轨道内单跳 ISL 的值
+def node_to_node_cost_estimate(
+    num_orbs,
+    num_sats_per_orbs,
+    num_satellites,
+    shift_between_last_and_first
+):
+    
+    def heuristic_Fuc(nid_1,nid_2):
+        if nid_1>=num_satellites or nid_2>=num_satellites:
+            raise ValueError("节点编号必须小于卫星总数")
+        # 保证 node 1 的编号小于 node 2
+        nid_1,nid_2= sorted([nid_1,nid_2])
+        
+        if nid_1 >= num_satellites and nid_2 >= num_satellites:
+            raise ValueError("Satellite ID must be less than the number of satellites")
+
+        # 计算两个卫星之间的跳数
+        node1_orbs = nid_1//num_sats_per_orbs
+        node1_id_in_orbs = nid_1 - node1_orbs*num_sats_per_orbs
+        node2_orbs = nid_2//num_sats_per_orbs
+        node2_id_in_orbs = nid_2 - node2_orbs*num_sats_per_orbs
+
+        min_hop_nid_1_to_nid_2_not_cross_last_to_first = (node2_orbs-node1_orbs) +  min((node1_id_in_orbs-node2_id_in_orbs)%num_sats_per_orbs,(node2_id_in_orbs-node1_id_in_orbs)%num_sats_per_orbs)
+
+        min_hop_nid_1_to_nid_2_cross_last_to_first = (node1_orbs-node2_orbs)% num_orbs + \
+                        min((node1_id_in_orbs - shift_between_last_and_first -node2_id_in_orbs)%num_sats_per_orbs,(node2_id_in_orbs + shift_between_last_and_first -node1_id_in_orbs)%num_sats_per_orbs)
+        return min(min_hop_nid_1_to_nid_2_not_cross_last_to_first,min_hop_nid_1_to_nid_2_cross_last_to_first)
+    
+    return heuristic_Fuc
+
+
+# 改名字，并非最短路径，而是 astar 求出的可用路径
 def calculate_fstate_shortest_path_without_gs_relaying(
         output_dynamic_state_dir,
         time_since_epoch_ns,
+        num_orbs,
+        num_sats_per_orbs,
         num_satellites,
         num_ground_stations,
         sat_net_graph_only_satellites_with_isls,
@@ -15,95 +66,87 @@ def calculate_fstate_shortest_path_without_gs_relaying(
         prev_fstate,
         enable_verbose_logs
 ):
+    # 星链 72*18，相位因子为45，对应最后一个轨道与第一个轨道之间需要 9 偏移
+    shift_between_last_and_first = 9
+    
 
     # Calculate shortest path distances
     if enable_verbose_logs:
-        print("  > Calculating Floyd-Warshall for graph without ground-station relays")
-    # (Note: Numpy has a deprecation warning here because of how networkx uses matrices)
-    # dist_sat_net_without_gs = nx.floyd_warshall_numpy(sat_net_graph_only_satellites_with_isls)
-    d_path_without_gs = dict(nx.all_pairs_dijkstra_path(sat_net_graph_only_satellites_with_isls))
-    d_path_len_without_gs =  dict(nx.all_pairs_dijkstra_path_length(sat_net_graph_only_satellites_with_isls))
+        print("  > Calculating Astar for graph without ground-station relays")
+
     # Forwarding state
     fstate = {}
+
+    # 实例化 cthulhu 网络
+    print("构建 cthulhu_Grid 图")
+    start = time.time()
+    sat_network_routing_wiht_cthulhu_Grid = cthulhu.Sat_network_routing_wiht_cthulhu_Grid(num_orbs,num_sats_per_orbs,sat_net_graph_only_satellites_with_isls,shift_between_last_and_first)
+    stop = time.time()
+    print(f'构建 cthulhu_Grid 图所花费时间:{stop-start}')
+
+    print("根据 cthulhu_Grid 图， 获得每对节点的路径，以及代价")
+    cthulhu_Grid_path = {}
+    cthulhu_Grid_path_len = {}
+    start = time.time()
+    for i in range(num_orbs*num_sats_per_orbs):
+        for j in  range(num_orbs*num_sats_per_orbs):
+            i_to_j_path,i_to_j__path_len = sat_network_routing_wiht_cthulhu_Grid.path_a_to_b(i,j)
+            cthulhu_Grid_path[(i,j)] = i_to_j_path
+            cthulhu_Grid_path_len[(i,j)] = i_to_j__path_len
+    stop = time.time()
+    print(f'根据 cthulhu_Grid 图获得任意节点对路由所花费时间:{stop-start}')
+    print(f'根据 cthulhu_Grid 图获得单源节点对路由所花费时间:{(stop-start)/num_orbs/num_sats_per_orbs}')
+
+    # 实例化卫星跳数估算函数
+    heuristic_Fuc = node_to_node_cost_estimate(num_orbs,num_sats_per_orbs,num_satellites,shift_between_last_and_first)
+
+    print(f'time_since_epoch_ns:{time_since_epoch_ns/1e9} seconds, cthulhu calculation is completed')
+    
 
     # Now write state to file for complete graph
     output_filename = output_dynamic_state_dir + "/fstate_" + str(time_since_epoch_ns) + ".txt"
     if enable_verbose_logs:
         print("  > Writing forwarding state to: " + output_filename)
     with open(output_filename, "w+") as f_out:
-        dist_satellite_to_ground_station = {}
-        for curr in range(num_satellites):
-            for dst_gid in range(num_ground_stations):  
-
+        
+        # 计算源节点为卫星，目的节点为地面站的路由表
+        for curr in range (num_satellites):
+            for dst_gid in range(num_ground_stations):
                 dst_gs_node_id = num_satellites + dst_gid
-                dist_satellite_to_ground_station[(curr,dst_gs_node_id)] = math.inf
 
-                possible_dst_sats = ground_station_satellites_in_range_candidates[dst_gid]
-                # next_hop,if_curr,if_next,curr,visible_sat_sector
-                next_hop_decision = (-1, -1, -1, -1, -1)
-
-                if prev_fstate :
-                    pre_sat_gs_link =  prev_fstate[(curr, dst_gs_node_id)][4]
-                    if pre_sat_gs_link != -1 and d_path_len_without_gs[curr][pre_sat_gs_link] != math.inf:
-                        for distance_to_possible_dst_sat,possible_dst_sat in possible_dst_sats:
-                            if possible_dst_sat == pre_sat_gs_link:
-                                if pre_sat_gs_link == curr:
-                                    print("pre_sat_gs_link == curr\n\n",curr)
-                                    next_hop_decision = (
-                                        dst_gs_node_id,
-                                        num_isls_per_sat[curr] + gid_to_sat_gsl_if_idx[dst_gid],
-                                        0,
-                                        curr,
-                                        curr
-                                    )
-                                    dist_satellite_to_ground_station[(curr,dst_gs_node_id)]  = distance_to_possible_dst_sat
-                                    break
-                                else:
-                                    # print("pre_sat_gs_link != curr\n\n")
-                                    next_hop = d_path_without_gs[curr][pre_sat_gs_link][1]
-                                    next_hop_decision = (
-                                        next_hop,
-                                        sat_neighbor_to_if[(curr, next_hop)],
-                                        sat_neighbor_to_if[(next_hop, curr)],
-                                        curr,
-                                        pre_sat_gs_link
-                                    )
-                                    dist_satellite_to_ground_station[(curr,dst_gs_node_id)]  = distance_to_possible_dst_sat + d_path_len_without_gs[curr][pre_sat_gs_link]
-                                    break
-                # 如果在上一步没有能更新，即上一条选中 gsl 已经失效或者无法到达该 gsl 链接的卫星，需要进入路由更新
-                # 或者 prev_fstate 为空，即仿真的第 0 个时隙
-                if next_hop_decision == (-1, -1, -1, -1, -1):
-                    best_distance_m = 1000000000000000
-                    for distance_to_possible_dst_sat,possible_dst_sat in possible_dst_sats:
-                        # 如果 curr 对该地面站可见
-                        if  d_path_len_without_gs[curr][possible_dst_sat] == 0:
-                            best_distance_m = distance_to_possible_dst_sat
-                            next_hop_decision = (
-                                    dst_gs_node_id,
-                                    num_isls_per_sat[curr] + gid_to_sat_gsl_if_idx[dst_gid],
-                                    0,
-                                    curr,
-                                    curr
-                            )
-                            dist_satellite_to_ground_station[(curr,dst_gs_node_id)]  = distance_to_possible_dst_sat
-                            # 注意这里要添加 break
+                # 默认为目标地面站无可达卫星，即 next_hop_decision 均为 -1
+                next_hop_decision = (-1, -1, -1)
+                dst_sat = -1
+                # 如果目标地面站有可达卫星，则计算路由表
+                if len(ground_station_satellites_in_range_candidates[dst_gid])>0:
+                    # 如果当前卫星与目的地面站可建立链接，则更新目标卫星为当前卫星
+                    for possible_dst_sats in ground_station_satellites_in_range_candidates[dst_gid]:
+                        if possible_dst_sats[1] == curr:
+                            dst_sat = curr
                             break
-                        # curr 不可见时
-                        elif d_path_len_without_gs[curr][possible_dst_sat] != math.inf:
-                            if d_path_len_without_gs[curr][possible_dst_sat] + distance_to_possible_dst_sat < best_distance_m:
-                                best_distance_m = d_path_len_without_gs[curr][possible_dst_sat] + distance_to_possible_dst_sat
-                                next_hop = d_path_without_gs[curr][possible_dst_sat][1]
-                                next_hop_decision = (
-                                    next_hop,
-                                    sat_neighbor_to_if[(curr, next_hop)],
-                                    sat_neighbor_to_if[(next_hop, curr)],
-                                    curr,
-                                    possible_dst_sat
-                                )
-                                dist_satellite_to_ground_station[(curr,dst_gs_node_id)]  = distance_to_possible_dst_sat +  d_path_len_without_gs[curr][possible_dst_sat]
-                # if next_hop_decision == (-1, -1, -1, -1, -1):
-                #     print("what the fuck!!!\n")
 
+                    # 当前卫星为目标卫星，直接转发到地面，否则通过 cthulhu_grid 确定下一跳
+                    if curr == dst_sat and dst_sat!=-1:
+                        next_hop_decision = (
+                            dst_gs_node_id,
+                            num_isls_per_sat[dst_sat] + gid_to_sat_gsl_if_idx[dst_gid],
+                            0
+                        )
+                    else:
+                        path_m =[]
+                        distance_m = math.inf
+                        for possible_dst_sats in ground_station_satellites_in_range_candidates[dst_gid]:
+                            if heuristic_Fuc(curr,possible_dst_sats[1]) < distance_m:
+                                path_m = cthulhu_Grid_path[(curr,possible_dst_sats[1])]
+                                distance_m = heuristic_Fuc(curr,possible_dst_sats[1])
+                        
+                        if not math.isinf(distance_m):
+                            next_hop_decision = (
+                                path_m[1],
+                                sat_neighbor_to_if[(curr, path_m[1])],
+                                sat_neighbor_to_if[(path_m[1], curr)]
+                            )
+                
                 # Write to forwarding state
                 if not prev_fstate or prev_fstate[(curr, dst_gs_node_id)] != next_hop_decision:
                     f_out.write("%d,%d,%d,%d,%d\n" % (
@@ -114,58 +157,32 @@ def calculate_fstate_shortest_path_without_gs_relaying(
                         next_hop_decision[2]
                     ))
                 fstate[(curr, dst_gs_node_id)] = next_hop_decision
-        
-        for src_gid in range(num_ground_stations):
+
+        for src_gid in range (num_ground_stations):
             for dst_gid in range(num_ground_stations):
                 if src_gid != dst_gid:
                     src_gs_node_id = num_satellites + src_gid
                     dst_gs_node_id = num_satellites + dst_gid
+                    # 默认为源地面站无可接入卫星，或目标地面站无可达卫星，即 next_hop_decision 均为 -1
+                    next_hop_decision = (-1, -1, -1)
 
-                    next_hop_decision = (-1, -1, -1, -1, -1)
+                    # 若源地面站与目的地面站均有可达卫星
+                    if len(ground_station_satellites_in_range_candidates[src_gid])>0 and len(ground_station_satellites_in_range_candidates[dst_gid])>0:
+                        path_m =[]
+                        distance_m = math.inf
+                        for possible_src_sats in ground_station_satellites_in_range_candidates[src_gid]:
+                            for possible_dst_sats in ground_station_satellites_in_range_candidates[dst_gid]:
+                                if heuristic_Fuc(possible_src_sats[1],possible_dst_sats[1] )< distance_m:
+                                    path_m = cthulhu_Grid_path[(possible_src_sats[1],possible_dst_sats[1] )]
+                                    distance_m = heuristic_Fuc(possible_src_sats[1],possible_dst_sats[1] )
+                        if not math.isinf(distance_m):
+                            next_hop_decision = (
+                                path_m[0],
+                                0,
+                                num_isls_per_sat[path_m[0]] + gid_to_sat_gsl_if_idx[src_gid]
+                            )
 
-                    possible_src_sats = ground_station_satellites_in_range_candidates[src_gid]
-                    possible_dst_sats = ground_station_satellites_in_range_candidates[dst_gid]
-
-                    if prev_fstate :
-                        pre_sat_src_gs_link =  prev_fstate[(src_gs_node_id, dst_gs_node_id)][3]
-                        pre_sat_dst_gs_link =  prev_fstate[(src_gs_node_id, dst_gs_node_id)][4]
-
-                        if pre_sat_src_gs_link != -1 and pre_sat_dst_gs_link != -1 and d_path_len_without_gs[pre_sat_src_gs_link][pre_sat_dst_gs_link] != math.inf:
-                            pre_sat_src_gs_link_avaiable = False
-                            pre_sat_dst_gs_link_avaiable = False
-                            for distance_to_possible_src_sat,possible_src_sat in possible_src_sats:
-                                if possible_src_sat == pre_sat_src_gs_link:
-                                    pre_sat_src_gs_link_avaiable = True
-                            for distance_to_possible_dst_sat,possible_dst_sat in possible_dst_sats:
-                                if possible_dst_sat == pre_sat_dst_gs_link:
-                                    pre_sat_dst_gs_link_avaiable = True
-                            if pre_sat_src_gs_link_avaiable and pre_sat_dst_gs_link_avaiable:
-                                # print("pre_sat_src_gs_link_avaiable and pre_sat_dst_gs_link_avaiable\n\n")
-                                next_hop_decision = (
-                                    pre_sat_src_gs_link,
-                                    0,
-                                    num_isls_per_sat[pre_sat_src_gs_link] + gid_to_sat_gsl_if_idx[src_gid],
-                                    pre_sat_src_gs_link,
-                                    pre_sat_dst_gs_link
-                                )
-                    # 如果前一步没有能更新，即原本使用的 gsl 至少一条失效，或者两颗gsl连接的卫星之间无路径
-                    if next_hop_decision == (-1, -1, -1, -1, -1):
-                        best_distance_m = 1000000000000000
-                        for distance_to_possible_src_sat,possible_src_sat in possible_src_sats:
-                            # 源地面站的某可见卫星到目的地面站有路径
-                            if fstate[(possible_src_sat, dst_gs_node_id)][2] != -1:
-                                if distance_to_possible_src_sat + dist_satellite_to_ground_station[(possible_src_sat,dst_gs_node_id)] < best_distance_m:
-                                    best_distance_m = distance_to_possible_src_sat + dist_satellite_to_ground_station[(possible_src_sat,dst_gs_node_id)]
-                                    next_hop_decision = (
-                                        possible_src_sat,
-                                        0,
-                                        num_isls_per_sat[possible_src_sat] + gid_to_sat_gsl_if_idx[src_gid],
-                                        possible_src_sat,
-                                        fstate[(possible_src_sat, dst_gs_node_id)][4]
-                                    )
-                    # if next_hop_decision == (-1, -1, -1, -1, -1):
-                    #     print("rnm tuiqian\n\n")
-                    # Update forwarding state
+                    # Write to forwarding state
                     if not prev_fstate or prev_fstate[(src_gs_node_id, dst_gs_node_id)] != next_hop_decision:
                         f_out.write("%d,%d,%d,%d,%d\n" % (
                             src_gs_node_id,
@@ -175,7 +192,6 @@ def calculate_fstate_shortest_path_without_gs_relaying(
                             next_hop_decision[2]
                         ))
                     fstate[(src_gs_node_id, dst_gs_node_id)] = next_hop_decision
-
     # Finally return result
     return fstate
 
