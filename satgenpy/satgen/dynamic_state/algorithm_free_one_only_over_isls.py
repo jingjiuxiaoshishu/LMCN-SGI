@@ -25,6 +25,7 @@ from .fstate_calculation import *
 
 def algorithm_free_one_only_over_isls(
         output_dynamic_state_dir,
+        epoch,
         time_since_epoch_ns,
         satellites,
         ground_stations,
@@ -99,6 +100,7 @@ def algorithm_free_one_only_over_isls(
     # Forwarding state using shortest paths
     fstate = calculate_fstate_shortest_path_without_gs_relaying(
         output_dynamic_state_dir,
+        epoch,
         time_since_epoch_ns,
         len(satellites),
         len(ground_stations),

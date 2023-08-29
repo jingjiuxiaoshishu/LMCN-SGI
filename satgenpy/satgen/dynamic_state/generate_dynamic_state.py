@@ -30,6 +30,9 @@ from .algorithm_free_one_only_over_isls import algorithm_free_one_only_over_isls
 from .algorithm_paired_many_only_over_isls import algorithm_paired_many_only_over_isls
 from .algorithm_free_gs_one_sat_many_only_over_isls import algorithm_free_gs_one_sat_many_only_over_isls
 
+import ephem
+from .distrubute_route.visible_helper import Visible_time_helper
+from .distrubute_route.sat_selector import Sat_selector
 
 def generate_dynamic_state(
         output_dynamic_state_dir,
@@ -51,6 +54,29 @@ def generate_dynamic_state(
                                   # "algorithm_paired_many_only_over_isls"
         enable_verbose_logs
 ):
+    
+    time_step_ms = time_step_ns/1000/1000
+    simulation_end_time_s = simulation_end_time_ns/1000/1000/1000
+    
+    # 建立地面站观察者
+    print("\n ground_observers 建立中")    
+    ground_observers = []
+    for ground_station in ground_stations:
+        ground_observer = ephem.Observer()
+        ground_observer.lat = ground_station["latitude_degrees_str"]
+        ground_observer.lon = ground_station["longitude_degrees_str"]
+        ground_observers.append(ground_observer)
+        
+    print("\n 可见时间计算中,请注意最长仿真时间不要超过卫星的周期")
+    visible_time_helper = Visible_time_helper(ground_observers, satellites, 25, ephem.Date(epoch.datetime),
+                                              time_step_ms, simulation_end_time_s)
+    
+    import pickle
+    visible_times = visible_time_helper.visible_times
+    with open("visible_times.pkl","wb") as f:
+        pickle.dump(visible_times,f)
+
+
     if offset_ns % time_step_ns != 0:
         raise ValueError("Offset must be a multiple of time_step_ns")
     prev_output = None
@@ -227,6 +253,7 @@ def generate_dynamic_state_at(
 
         return algorithm_free_one_only_over_isls(
             output_dynamic_state_dir,
+            epoch,
             time_since_epoch_ns,
             satellites,
             ground_stations,
