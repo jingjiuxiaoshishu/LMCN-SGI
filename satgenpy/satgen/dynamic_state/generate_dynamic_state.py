@@ -292,7 +292,7 @@ def generate_dynamic_state_at(
             sat_net_graph_all_with_only_gsls,
             num_isls_per_sat,
             list_gsl_interfaces_info,
-            prev_output,
+            prev_output,c
             enable_verbose_logs
         )
 
