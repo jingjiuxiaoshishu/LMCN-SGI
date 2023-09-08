@@ -138,6 +138,20 @@ def generate_dynamic_state(
         
         # sat_net_graph_only_satellites_with_isls 更新
         print("\n sat_net_graph_only_satellites_with_isls 更新")
+        if time_since_epoch_ns*time_step_ns == 100:
+            import random
+            # 设置随机种子
+            random.seed(42)
+            # 百分之一的坏边
+            print("\n 随机构建坏边，坏边率默认为百分之 1")
+            percentage = 0.01
+            num_fail_edges = int(percentage * len(list_isls))
+            fail_edges = set(random.sample(list_isls, num_fail_edges))
+            with open("fail_edges.pkl","wb") as f:
+                pickle.dump(fail_edges,f) 
+            for fail_edge in fail_edges:
+                sat_net_graph_only_satellites_with_isls[fail_edge[0]][fail_edge[1]]["weight"] = math.inf
+
         for src,dst,attrs in sat_net_graph_only_satellites_with_isls.edges(data=True):
             edge = (src,dst)
             edge_weight = attrs["weight"]
