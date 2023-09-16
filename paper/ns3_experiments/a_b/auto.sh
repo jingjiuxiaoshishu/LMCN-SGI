@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 实验文件夹列表
-experiments=( "global_shortest_path" "routing_system" "maximum_service_time")
+experiments=( "global_shortest_path" "maximum_service_time" "correct_modified_routing_system" "modified_global_shortest_path" "routing_system")
 
 for exp_folder in "${experiments[@]}"; do
 
@@ -32,13 +32,13 @@ for exp_folder in "${experiments[@]}"; do
     python step_3_generate_plots.py
     echo "step_3_generate_plots 执行完成"
 
-    mkdir "${exp_folder}_ns3_results"
-    cp -r runs "${exp_folder}_ns3_results"
-    cp -r data "${exp_folder}_ns3_results"
-    cp -r pdf "${exp_folder}_ns3_results"
+    mkdir "${exp_folder}_ns3_results_new_pairs"
+    cp -r runs "${exp_folder}_ns3_results_new_pairs"
+    cp -r data "${exp_folder}_ns3_results_new_pairs"
+    cp -r pdf "${exp_folder}_ns3_results_new_pairs"
 
     # 打包实验结果
-    tar -czvf "${exp_folder}_ns3_results.tar.gz" "${exp_folder}_ns3_results"
+    tar -czvf "${exp_folder}_ns3_results_new_pairs.tar.gz" "${exp_folder}_ns3_results_new_pairs"
     rm -r "${exp_folder}_ns3_results"
 
     echo "$exp_folder 实验完成并打包结果。"

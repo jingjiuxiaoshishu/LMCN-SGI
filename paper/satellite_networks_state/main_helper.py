@@ -93,6 +93,11 @@ class MainHelper:
                 "input_data/ground_stations_starlink.txt",
                 output_generated_data_dir + "/" + name + "/ground_stations.txt"
             )
+        elif gs_selection == "gs_15":
+            satgen.extend_ground_stations(
+                "input_data/gs_15.txt",
+                output_generated_data_dir + "/" + name + "/ground_stations.txt"
+            )
         else:
             raise ValueError("Unknown ground station selection: " + gs_selection)
 
