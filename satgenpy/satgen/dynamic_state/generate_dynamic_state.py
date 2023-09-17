@@ -32,7 +32,57 @@ from .algorithm_paired_many_only_over_isls import algorithm_paired_many_only_ove
 from .algorithm_free_gs_one_sat_many_only_over_isls import algorithm_free_gs_one_sat_many_only_over_isls
 from .distrubute_route.satellite_node import Satellite_node
 from .distrubute_route.visible_helper import Visible_time_helper
+from .distrubute_route.olsr_node import Olsr_node
 from .distrubute_route.sat_selector import Sat_selector
+import copy
+
+def get_gsl_list(satellites,ground_stations,max_gsl_length_m,epoch,time):
+    gsl_list = {}
+    for gid,ground_station in enumerate(ground_stations):
+        gsl_list[gid] = []
+        for sid in range(len(satellites)):
+            distance_m = distance_m_ground_station_to_satellite(
+                ground_station,
+                satellites[sid],
+                str(epoch),
+                str(time)
+            )
+            if distance_m <= max_gsl_length_m:
+                gsl_list[gid].append(sid)
+    return gsl_list
+
+
+def check_gsl(sid,gid,satellites,ground_stations,max_gsl_length_m,epoch,time):
+    distance_m = distance_m_ground_station_to_satellite(
+        ground_stations[gid],
+        satellites[sid],
+        str(epoch),
+        str(time)
+    )
+    if distance_m <= max_gsl_length_m:
+        return True
+    else:
+        return False
+
+def get_sat_net_graph_with_sat_and_gs(satellites,ground_stations,sat_net_graph_only_satellites_with_isls,max_gsl_length_m,epoch,time):
+    print("构建星地完整拓扑图")
+    sat_net_graph_with_sat_and_gs = copy.deepcopy(sat_net_graph_only_satellites_with_isls)
+    for gid in range(len(ground_stations)):
+        sat_net_graph_with_sat_and_gs.add_edge(gid+len(satellites),0,weight=math.inf)
+    gsl_list = get_gsl_list(satellites,ground_stations,max_gsl_length_m,epoch,time)
+    for gs_node_id,sid in gsl_list:
+        distance_m = distance_m_ground_station_to_satellite(
+                ground_stations[gs_node_id-len(satellites)],
+                satellites[sid],
+                str(epoch),
+                str(time)
+            )
+        sat_net_graph_with_sat_and_gs.add_edge(gs_node_id,sid,weight = distance_m)
+    return sat_net_graph_with_sat_and_gs
+    
+
+
+
 
 
 def generate_dynamic_state(
@@ -60,72 +110,23 @@ def generate_dynamic_state(
     
     # 建立 有距离的星上拓扑图 和 边恒为一的星上拓扑图
     sat_net_graph_only_satellites_with_isls = nx.Graph()
-    plus_grid_graph = nx.Graph()
 
     for sid_1,sid_2 in list_isls:
         sat_distance_m = distance_m_between_satellites(satellites[sid_1], satellites[sid_2], str(epoch), str(epoch))
         sat_net_graph_only_satellites_with_isls.add_edge(sid_1,sid_2,weight = sat_distance_m)
-        plus_grid_graph.add_edge(sid_1,sid_2,weight = 1)
+  
 
-    
     time_step_ms = time_step_ns/1000/1000
     simulation_end_time_s = simulation_end_time_ns/1000/1000/1000
 
+    print("构建 olsr 节点")
+    olsr_nodes = []
+    for node_id in range(len(satellites)):
+        olsr_node = Olsr_node(node_id,len(satellites), sat_net_graph_only_satellites_with_isls, epoch, time_step_ms, simulation_end_time_s)
+        olsr_nodes.append(olsr_node)
 
-    print("\n 注意 astropy 的 Time 和 ephem.Date 的转换")
-    ephem_epoch = ephem.Date(epoch.datetime)
-
-    # 建立卫星的虚拟节点
-    print("\n satellite_nodes 建立中")   
-    satellite_nodes = []
-    for sid,_ in enumerate(satellites):
-        satellite_node = Satellite_node(sid, satellites[sid], plus_grid_graph,
-                                    sat_net_graph_only_satellites_with_isls,ephem_epoch,time_step_ms, simulation_end_time_s)
-        satellite_nodes.append(satellite_node)
-
-    for sid_1,sid_2 in list_isls:
-        satellite_nodes[sid_1].set_isl_neighbor(sid_2,satellite_nodes[sid_2])
-        satellite_nodes[sid_2].set_isl_neighbor(sid_1,satellite_nodes[sid_1])
-
-    # # 建立地面站观察者
-    # print("\n ground_observers 建立中")    
-    # ground_observers = []
-    # for ground_station in ground_stations:
-    #     ground_observer = ephem.Observer()
-    #     ground_observer.lat = ground_station["latitude_degrees_str"]
-    #     ground_observer.lon = ground_station["longitude_degrees_str"]
-    #     ground_observers.append(ground_observer)
-        
-    # print("\n 可见时间计算中,请注意最长仿真时间不要超过卫星的周期")
-    # visible_time_helper = Visible_time_helper(ground_observers, satellites, 25, ephem_epoch,
-    #                                           time_step_ms, simulation_end_time_s)
-    
-    # import pickle
-    # visible_times = visible_time_helper.visible_times
-    # with open("visible_times.pkl","wb") as f:
-    #     pickle.dump(visible_times,f)
-
-    import pickle
-    with open("visible_times.pkl","rb") as f:
-        visible_times = pickle.load(f)
-
-    print("\n 建立选星器，并初始化 gsl ")
-    shift_between_last_and_first = 8
-    
-    sat_selector = Sat_selector(visible_times,num_orbs,num_sats_per_orbs,shift_between_last_and_first,ephem_epoch,time_step_ms, simulation_end_time_s)
-
-    print("\n 添加更新事件，表明 epoch 需要对每个 gs 的 gsl 更新两次 ")
-    for gid,gsl in sat_selector.gsls.items():
-        # 添加更新事件，表明 epoch 需要对每个 gs 的 gsl 更新两次
-        for i in range(2):
-            sat_selector.add_gsl_update_event(gid,i,0)
-
-    print(f"\n 初始化 gsl，此时 gsl 均为 -1 \n 初始化 forward_table_to_gs" "\n 初始化 forward_table_to_sats"  "\n 初始化 init_state_of_edges")
-    for satellite_node in satellite_nodes:
-        satellite_node.init_forward_table_to_gs(len(sat_selector.gsls))
-        satellite_node.init_forward_table_to_sats(len(satellite_nodes))
-        satellite_node.init_state_of_edges()
-        satellite_node.update_forward_table_to_sats()
+    for olsr_node in olsr_nodes:
+        olsr_node.update_point_to_all_node(olsr_nodes)
 
 
     prev_output = None
@@ -142,8 +143,9 @@ def generate_dynamic_state(
         
         # sat_net_graph_only_satellites_with_isls 更新
         print("\n sat_net_graph_only_satellites_with_isls 更新")
-        if time_since_epoch_ns*time_step_ns == 100:
+        if time_since_epoch_ns/time_step_ns == 1:
             import random
+            import pickle
             # 设置随机种子
             random.seed(42)
             # 百分之一的坏边
@@ -155,101 +157,31 @@ def generate_dynamic_state(
                 pickle.dump(fail_edges,f) 
             for fail_edge in fail_edges:
                 sat_net_graph_only_satellites_with_isls[fail_edge[0]][fail_edge[1]]["weight"] = math.inf
-
+        time = epoch + time_since_epoch_ns * u.ns
         for src,dst,attrs in sat_net_graph_only_satellites_with_isls.edges(data=True):
             edge = (src,dst)
             edge_weight = attrs["weight"]
             if edge_weight != math.inf:
-                distance = distance_m_between_satellites(satellite_nodes[edge[0]].satellite, satellite_nodes[edge[1]].satellite, str(epoch),  str(epoch + time_since_epoch_ns*u.ns))
+                distance = distance_m_between_satellites(satellites[edge[0]], satellites[edge[1]], str(epoch), str(time))
                 sat_net_graph_only_satellites_with_isls[edge[0]][edge[1]]["weight"] = distance
 
-        
-        # 注意顺序
-        # 1、更新 gsl
-        # 2、更新星上路由表 ( 同时会把 sat_net_graph_only_satellites_with_isls 更新同步)
-        # 3、更新卫星到地面站
-        # 4、更新地面站到地面站 （ 在 generate_dynamic_state_distribute 里更新）
-        # 5、写入路由表等
-        # 6、sat_net_graph_only_satellites_with_isls 更新
-
-        print("\n sat_selector.process()")
-        sat_selector.process()
-
-
-        # print("\n satellite_node.process() \n 依据gsl是否变化和卫星自身路由表是否变化，确定是否需要更新 gsl 及对应路由表")
-        # import threading
-        # def worker(satellite_nodes,start,stop,sat_net_graph_only_satellites_with_isls,sat_selector):
-        #     for satellite_node in satellite_nodes[start:stop]:
-        #         satellite_node.update_sat_net_graph_only_satellites_with_isls(sat_net_graph_only_satellites_with_isls)
-        #         satellite_node.process()
-        #         # 不管有没有变动，每个时隙都复制一遍 sat_selector 的 gsls，并重新计算 sat to gs
-        #         if  satellite_node.need_to_update_forward_table_to_sats:
-        #             for gid,gsl in sat_selector.gsls.items():
-        #                 for i in range(2):
-        #                     satellite_node.update_gsl(gid,gsl[i],i)
-        #         elif len(sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]) > 0:
-        #             for msg in sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]:
-        #                 gid = msg["gid"]
-        #                 gsl_to_update = msg["gsl_to_update"]
-        #                 satellite_node.update_gsl(gid,sat_selector.gsls[gid][gsl_to_update],gsl_to_update)
-
-        # print("\n 构建多线程参数")
-        # threads = []
-        # satellite_node_slices = []
-        # slices_step = 330
-        # start = 0
-        # stop = start + slices_step
-        # while stop < len(satellite_nodes):
-        #     satellite_node_slices.append((start,stop))
-        #     start = start + slices_step
-        #     stop = stop + slices_step
-        #     if stop > len(satellite_nodes):
-        #         stop = len(satellite_nodes)
-        # if start!=len(satellite_nodes):
-        #     satellite_node_slices.append((start,stop))
-        
-        # print("建立线程")
-        # for start,stop in satellite_node_slices:
-        #     thread = threading.Thread(target=worker, kwargs={"satellite_nodes": satellite_nodes, 
-        #                                                      "start":start,
-        #                                                      "stop":stop,
-        #                                                      "sat_net_graph_only_satellites_with_isls": sat_net_graph_only_satellites_with_isls,
-        #                                                      "sat_selector":sat_selector})
-        #     threads.append(thread)
-        # print("调度线程")
-        # for thread in threads:
-        #     thread.start()
-
-        # for thread in threads:
-        #     thread.join()
-        # print("全部线程执行完毕")
-
-        
-
-
-        print("\n satellite_node.process() \n 依据gsl是否变化和卫星自身路由表是否变化，确定是否需要更新 gsl 及对应路由表")
-        for satellite_node in satellite_nodes:
-            satellite_node.update_sat_net_graph_only_satellites_with_isls(sat_net_graph_only_satellites_with_isls)
-            satellite_node.process()
-            # 不管有没有变动，每个时隙都复制一遍 sat_selector 的 gsls，并重新计算 sat to gs
-            if  satellite_node.need_to_update_forward_table_to_sats:
-                for gid,gsl in sat_selector.gsls.items():
-                    for i in range(2):
-                        satellite_node.update_gsl(gid,gsl[i],i)
-            elif len(sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]) > 0:
-                for msg in sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]:
-                    gid = msg["gid"]
-                    gsl_to_update = msg["gsl_to_update"]
-                    satellite_node.update_gsl(gid,sat_selector.gsls[gid][gsl_to_update],gsl_to_update)
+        print("\n 更新 olsr 节点维护的图，并 process、\n")
+        for olsr_node in olsr_nodes:
+            # 待修改名字
+            olsr_node.update_sat_net_graph_with_sat_and_gs(sat_net_graph_only_satellites_with_isls)
+            olsr_node.process()
+        # print("check olsr_node 0 的路由表",olsr_nodes[0].forwarding_table)
 
         prev_output = generate_dynamic_state_distribute(
             epoch,
-            satellite_nodes,
-            sat_selector,
+            olsr_nodes,
+            satellites,
+            ground_stations,
             output_dynamic_state_dir,
             time_since_epoch_ns,
             list_isls,
             max_isl_length_m,
+            max_gsl_length_m,
             sat_net_graph_only_satellites_with_isls,
             list_gsl_interfaces_info,
             prev_output,
@@ -257,12 +189,11 @@ def generate_dynamic_state(
         )
 
     overhead = 0 
-    for satellite_node in satellite_nodes:
-        for msg_list in satellite_node.time_event_scheduler:
-            overhead = overhead + len(msg_list)
+    for olsr_node in olsr_nodes:
+        overhead = overhead + olsr_node.num_msg_rev
 
-    with open("overhead.txt","w+") as f:
-        f.write(f"{overhead}")
+    with open("overhead.txt","a+") as f:
+        f.write(f"overhead:{overhead} overhead:{percentage} olsr 仿真{simulation_end_time_s}s")
 
 
 
@@ -270,12 +201,14 @@ def generate_dynamic_state(
 
 def generate_dynamic_state_distribute(
         epoch,
-        satellite_nodes,
-        sat_selector,
+        olsr_nodes,
+        satellites,
+        ground_stations,
         output_dynamic_state_dir,
         time_since_epoch_ns,
         list_isls,
         max_isl_length_m,
+        max_gsl_length_m,
         sat_net_graph_only_satellites_with_isls,
         list_gsl_interfaces_info,
         prev_output,
@@ -292,7 +225,7 @@ def generate_dynamic_state_distribute(
 
     # ISL edges
     total_num_isls = 0
-    num_isls_per_sat = [0] * len(satellite_nodes)
+    num_isls_per_sat = [0] * len(satellites)
     sat_neighbor_to_if = {}
     for (a, b) in list_isls:
 
@@ -300,7 +233,7 @@ def generate_dynamic_state_distribute(
         # TODO: Technically, they can (could just be ignored by forwarding state calculation),
         # TODO: but practically, defining a permanent ISL between two satellites which
         # TODO: can go out of distance is generally unwanted
-        sat_distance_m = distance_m_between_satellites(satellite_nodes[a].satellite, satellite_nodes[b].satellite, str(epoch), str(epoch + time_since_epoch_ns*u.ns))
+        sat_distance_m = distance_m_between_satellites(satellites[a], satellites[b], str(epoch), str(epoch + time_since_epoch_ns*u.ns))
         if sat_distance_m > max_isl_length_m:
             raise ValueError(
                 "The distance between two satellites (%d and %d) "
@@ -332,11 +265,11 @@ def generate_dynamic_state_distribute(
 
     satellite_gsl_if_count_list = list(map(
         lambda x: x["number_of_interfaces"],
-        list_gsl_interfaces_info[0:len(satellite_nodes)]
+        list_gsl_interfaces_info[0:len(satellites)]
     ))
     ground_station_gsl_if_count_list = list(map(
         lambda x: x["number_of_interfaces"],
-        list_gsl_interfaces_info[len(satellite_nodes):(len(satellite_nodes) + len(sat_selector.gsls))]
+        list_gsl_interfaces_info[len(satellites):(len(satellites)+len(ground_stations))]
     ))
     if enable_verbose_logs:
         print("  > Min. GSL IFs/satellite........ " + str(np.min(satellite_gsl_if_count_list)))
@@ -352,11 +285,11 @@ def generate_dynamic_state_distribute(
         print("  > Writing interface bandwidth state to: " + output_filename)
     with open(output_filename, "w+") as f_out:
         if time_since_epoch_ns == 0:
-            for node_id in range(len(satellite_nodes)):
+            for node_id in range(len(satellites)):
                 f_out.write("%d,%d,%f\n"
                             % (node_id, num_isls_per_sat[node_id],
                                list_gsl_interfaces_info[node_id]["aggregate_max_bandwidth"]))
-            for node_id in range(len(satellite_nodes), len(satellite_nodes) + len(sat_selector.gsls)):
+            for node_id in range(len(satellites), (len(satellites)+len(ground_stations))):
                 f_out.write("%d,%d,%f\n"
                             % (node_id, 0, list_gsl_interfaces_info[node_id]["aggregate_max_bandwidth"]))
 
@@ -365,69 +298,77 @@ def generate_dynamic_state_distribute(
     if enable_verbose_logs:
         print(f"\n 更新 {str(epoch + time_since_epoch_ns*u.ns)} 时刻路由表")
     
-    gsls = sat_selector.gsls   
+    time = epoch + time_since_epoch_ns * u.ns
+
+    gsl_list = get_gsl_list(satellites,ground_stations,max_gsl_length_m,epoch,time)
+
+
+    forward_table_sat_to_gs = {}
+    forward_cost_sat_to_gs = {}
+    for sid in range(len(satellites)):
+        forward_table_sat_to_gs[sid] = {}
+        forward_cost_sat_to_gs[sid] = {}
+
+        for gid in range(len(ground_stations)):
+            if check_gsl(sid,gid,satellites,ground_stations,max_gsl_length_m,epoch,time):
+                forward_table_sat_to_gs[sid][gid] = gid+len(satellites)
+                forward_cost_sat_to_gs[sid][gid] = 1
+            else:
+                next_hop = -1
+                cost = math.inf
+                for waypoint_sid in gsl_list[gid]:
+                    if olsr_nodes[sid].forwarding_cost[waypoint_sid] < cost:
+                        next_hop = olsr_nodes[sid].forwarding_table[waypoint_sid]
+                        cost = olsr_nodes[sid].forwarding_cost[waypoint_sid]
+                forward_table_sat_to_gs[sid][gid] = next_hop
+                forward_cost_sat_to_gs[sid][gid] = cost+1
+    
+
     # 初始化一个空的 gs 到 gs 的路由表
     forward_table_gs_to_gs = {}
     forward_cost_gs_to_gs = {}
-    for gid_1 in range(len(gsls)):
+    for gid_1 in range(len(ground_stations)):
         forward_table_gs_to_gs[gid_1] = {}
         forward_cost_gs_to_gs[gid_1] = {}
-        for gid_2 in range(len(gsls)):
+        for gid_2 in range(len(ground_stations)):
             if gid_1 != gid_2:
-                forward_table_gs_to_gs[gid_1][gid_2] = -1
-                forward_cost_gs_to_gs[gid_1][gid_2] = math.inf
+                next_hop = -1
+                cost = math.inf
+                for waypoint_sid in gsl_list[gid_1]:
+                    if forward_cost_sat_to_gs[waypoint_sid][gid_2] < cost:
+                        next_hop = waypoint_sid
+                        cost = forward_cost_sat_to_gs[waypoint_sid][gid_2]
+                cost = cost + 1
 
-    # 根据 gsls 和 卫星原本拥有的 sat to gs 路由表，计算 gs to gs 的路由表
-    for gid_1 in range(len(gsls)):
-        for gid_2 in range(len(gsls)):
-            if gid_1 != gid_2:
-                if prev_fstate:
-                    next_hop_1 =  prev_fstate[(gid_1+len(satellite_nodes),gid_2+len(satellite_nodes))][0]
-                    next_hop_2 =  prev_fstate[(gid_2+len(satellite_nodes),gid_1+len(satellite_nodes))][0]
-                    if next_hop_1 == -1 or next_hop_2 == -1:
-                        link_exist = -1
-                    else:
-                        link_exist = satellite_nodes[next_hop_1].forward_table_to_sats[next_hop_2] 
-                else:
-                    next_hop_1 =  -1
-                    next_hop_2 =  -1
-                    link_exist = -1
-                # 如果两个 pre_gsl 均可用，且两颗接入卫星之间有路径。
-                if (next_hop_1 in satellite_nodes[next_hop_1].gsl[gid_1]) and next_hop_1!=-1 and (next_hop_2 in satellite_nodes[next_hop_2].gsl[gid_2]) and next_hop_2!=-1 and link_exist!=-1:
-                    forward_table_gs_to_gs[gid_1][gid_2] = next_hop_1
-                    forward_cost_gs_to_gs[gid_1][gid_2] = satellite_nodes[next_hop_1].forward_cost_to_gs[gid_2] + 1
-                else:
-                    next_hop = -1
-                    cost = math.inf
-                    for sid in sat_selector.gsls[gid_1]:
-                        if sid != -1:
-                            if satellite_nodes[sid].forward_cost_to_gs[gid_2] < cost:
-                                next_hop = sid
-                                cost = satellite_nodes[sid].forward_cost_to_gs[gid_2]
-                    forward_table_gs_to_gs[gid_1][gid_2] = next_hop
-                    forward_cost_gs_to_gs[gid_1][gid_2] = cost + 1
+                forward_table_gs_to_gs[gid_1][gid_2] = next_hop
+                forward_cost_gs_to_gs[gid_1][gid_2] = cost
+
+
 
     # Forwarding state
     fstate = {}
-    gid_to_sat_gsl_if_idx = [0] * len(gsls) 
+    num_gs = len(ground_stations)
+    gid_to_sat_gsl_if_idx = [0] * num_gs
 
     # Now write state to file for complete graph
     output_filename = output_dynamic_state_dir + "/fstate_" + str(time_since_epoch_ns) + ".txt"
     if enable_verbose_logs:
         print("  > Writing forwarding state to: " + output_filename)
     with open(output_filename, "w+") as f_out:
-        for curr_sid,_ in enumerate(satellite_nodes):
-            for dst_gid,_ in enumerate(gsls):
-                dst_gs_node_id = dst_gid + len(satellite_nodes)
+        for curr_sid,_ in enumerate(satellites):
+            for dst_gid in range(num_gs):
+                dst_gs_node_id = dst_gid + len(satellites)
                 next_hop_decision = (-1, -1, -1)
-                if satellite_nodes[curr_sid].forward_cost_to_gs[dst_gid] != math.inf:
-                    if satellite_nodes[curr_sid].forward_table_to_gs[dst_gid] != dst_gid:
+                if forward_cost_sat_to_gs[curr_sid][dst_gid] != math.inf:
+                    next_hop = forward_table_sat_to_gs[curr_sid][dst_gid]
+                    if next_hop != dst_gs_node_id and sat_net_graph_only_satellites_with_isls.has_edge(curr_sid,next_hop) and \
+                                    sat_net_graph_only_satellites_with_isls[curr_sid][next_hop]["weight"]!=math.inf:
                         next_hop_decision=(
-                            satellite_nodes[curr_sid].forward_table_to_gs[dst_gid],
-                            sat_neighbor_to_if[curr_sid,satellite_nodes[curr_sid].forward_table_to_gs[dst_gid]],
-                            sat_neighbor_to_if[satellite_nodes[curr_sid].forward_table_to_gs[dst_gid],curr_sid]
+                            next_hop,
+                            sat_neighbor_to_if[curr_sid,next_hop],
+                            sat_neighbor_to_if[next_hop,curr_sid]
                         )
-                    else:
+                    elif next_hop == dst_gs_node_id:
                         next_hop_decision = (
                             dst_gs_node_id,
                             num_isls_per_sat[curr_sid] + gid_to_sat_gsl_if_idx[dst_gid],
@@ -445,11 +386,11 @@ def generate_dynamic_state_distribute(
                     ))
                 fstate[(curr_sid, dst_gs_node_id)] = next_hop_decision
 
-        for src_gid,_ in enumerate (gsls):
-            for dst_gid,_ in enumerate(gsls):
+        for src_gid in range (num_gs):
+            for dst_gid in range(num_gs):
                 if src_gid != dst_gid:
-                    src_gs_node_id = len(satellite_nodes) + src_gid
-                    dst_gs_node_id = len(satellite_nodes) + dst_gid
+                    src_gs_node_id = len(satellites) + src_gid
+                    dst_gs_node_id = len(satellites) + dst_gid
                     # 默认为源地面站无可接入卫星，或目标地面站无可达卫星，即 next_hop_decision 均为 -1
                     next_hop_decision = (-1, -1, -1)
 

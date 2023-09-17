@@ -22,7 +22,7 @@
 
 # Core values
 dynamic_state_update_interval_ms = 100                          # 100 millisecond update interval
-simulation_end_time_s = 200                                     # 200 seconds
+simulation_end_time_s = 1000                                     # 200 seconds
 pingmesh_interval_ns = 1 * 1000 * 1000                          # A ping every 1ms
 enable_isl_utilization_tracking = True                          # Enable utilization tracking
 isl_utilization_tracking_interval_ns = 1 * 1000 * 1000 * 1000   # 1 second utilization intervals
@@ -66,6 +66,12 @@ chosen_pairs = [
     ("starlink_550_isls", 1368, 1448, "TcpNewReno", full_satellite_network_isls),
     ("starlink_550_isls", 1368, 1448, "TcpVegas", full_satellite_network_isls),
 ]
+
+chosen_pairs = [
+    ("starlink_550_isls", 1429, 1430, "TcpNewReno", full_satellite_network_isls),
+    # ("starlink_550_isls", 1416, 1415, "TcpNewReno", full_satellite_network_isls)
+]
+
 
 # chosen_pairs = [
 #     ("starlink_550_isls", 1381, 1452, "TcpNewReno", full_satellite_network_isls),
