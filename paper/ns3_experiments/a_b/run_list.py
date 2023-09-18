@@ -60,24 +60,20 @@ full_satellite_network_isls = "starlink_550_isls_plus_grid_ground_stations_starl
 
 chosen_pairs = [
     ("starlink_550_isls", 1429, 1412, "TcpNewReno", full_satellite_network_isls),
-    ("starlink_550_isls", 1429, 1412, "TcpVegas", full_satellite_network_isls),
-    ("starlink_550_isls", 1416, 1458, "TcpNewReno", full_satellite_network_isls),
-    ("starlink_550_isls", 1416, 1458, "TcpVegas", full_satellite_network_isls),
-    ("starlink_550_isls", 1368, 1448, "TcpNewReno", full_satellite_network_isls),
-    ("starlink_550_isls", 1368, 1448, "TcpVegas", full_satellite_network_isls),
+    # ("starlink_550_isls", 1429, 1412, "TcpVegas", full_satellite_network_isls),
+    # ("starlink_550_isls", 1416, 1458, "TcpNewReno", full_satellite_network_isls),
+    # ("starlink_550_isls", 1416, 1458, "TcpVegas", full_satellite_network_isls),
+    # ("starlink_550_isls", 1368, 1448, "TcpNewReno", full_satellite_network_isls),
+    # ("starlink_550_isls", 1368, 1448, "TcpVegas", full_satellite_network_isls),
 ]
 
+# newpair_hybla orgin
 chosen_pairs = [
-    ("starlink_550_isls", 1429, 1430, "TcpNewReno", full_satellite_network_isls),
-    # ("starlink_550_isls", 1416, 1415, "TcpNewReno", full_satellite_network_isls)
+    ("starlink_550_isls", 1375, 1412, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1390, 1444, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1416, 1429, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1429, 1412, "TcpHybla", full_satellite_network_isls)
 ]
-
-
-# chosen_pairs = [
-#     ("starlink_550_isls", 1381, 1452, "TcpNewReno", full_satellite_network_isls),
-#     ("starlink_550_isls", 1407, 1452, "TcpNewReno", full_satellite_network_isls),
-#     ("starlink_550_isls", 1407, 1459, "TcpNewReno", full_satellite_network_isls),
-# ]
 
 # TCP Reno和Vegas应该是两种拥塞控制算法
 
@@ -92,7 +88,7 @@ def get_tcp_run_list():
                 "dynamic_state": dynamic_state,
                 "dynamic_state_update_interval_ns": dynamic_state_update_interval_ns,
                 "simulation_end_time_ns": simulation_end_time_ns,
-                "data_rate_megabit_per_s": 10.0,    # liu: 这里要怎么改
+                "data_rate_megabit_per_s": 100.0,    # liu: 这里要怎么改
                 "queue_size_pkt": 100,
                 "enable_isl_utilization_tracking": enable_isl_utilization_tracking,
                 "isl_utilization_tracking_interval_ns": isl_utilization_tracking_interval_ns,
