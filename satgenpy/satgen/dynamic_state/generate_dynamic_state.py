@@ -123,6 +123,7 @@ def generate_dynamic_state(
     for gid,gsl in sat_selector.gsls.items():
         # 只更新一条 gsl 
         sat_selector.add_gsl_update_event(gid,0,0)
+        sat_selector.add_gsl_update_event(gid,1,0)
 
     print(f"\n 初始化 gsl，此时 gsl 均为 -1 \n 初始化 forward_table_to_gsf" "\n 初始化 forward_table_to_sats"  "\n 初始化 init_state_of_edges")
     for satellite_node in satellite_nodes:
