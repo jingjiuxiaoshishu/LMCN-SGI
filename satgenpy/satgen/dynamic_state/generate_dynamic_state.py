@@ -242,22 +242,46 @@ def generate_dynamic_state_distribute(
     
     gsls = sat_selector_CSGI.gsls
 
-    graph_sat_and_gs = copy.deepcopy(sat_net_graph_only_satellites_with_isls)
-    time = epoch + time_since_epoch_ns * u.ns
-    for gid,gsl in enumerate(gsls):
-        if gsl == -1:
-            graph_sat_and_gs.add_edge(gid+len(satellites),0,weight = math.inf)
-        else:
-            distance_m = distance_m_ground_station_to_satellite(
-                ground_stations[gid],
-                satellites[gsl],
-                str(epoch),
-                str(time)
-            )
-            graph_sat_and_gs.add_edge(gid+len(satellites),gsl,weight = distance_m)
+    hop_graph = sat_net_graph_only_satellites_with_isls.copy()
+    for i, j in hop_graph.edges():
+        if sat_net_graph_only_satellites_with_isls[i][j]['weight'] != math.inf:
+            hop_graph[i][j]['weight'] = 1
 
-    d_path = dict(nx.all_pairs_dijkstra_path(graph_sat_and_gs))
-    d_path_len = dict(nx.all_pairs_dijkstra_path_length(graph_sat_and_gs))
+
+
+    d_path = dict(nx.all_pairs_dijkstra_path(hop_graph))
+    d_path_len = dict(nx.all_pairs_dijkstra_path_length(hop_graph))
+
+    for curr_sid in range(len(satellites)):
+        for dst_gid in range(len(gsls)):
+            dst_gs_node_id = dst_gid + len(satellites)
+            d_path[curr_sid][dst_gs_node_id] = -1
+            d_path_len[curr_sid][dst_gs_node_id] = math.inf
+            gsl = gsls[dst_gid] 
+            if gsl == curr_sid:
+                d_path[curr_sid][dst_gs_node_id] = [curr_sid,dst_gs_node_id]
+                d_path_len[curr_sid][dst_gs_node_id] = 1
+            elif gsl!=-1 and d_path_len[curr_sid][gsl] != math.inf:
+                # 
+                d_path[curr_sid][dst_gs_node_id] = copy.deepcopy(d_path[curr_sid][gsl])
+                d_path[curr_sid][dst_gs_node_id].append(dst_gs_node_id)
+                d_path_len[curr_sid][dst_gs_node_id] = d_path_len[curr_sid][gsl]+1
+
+    for src_gid in range(len(gsls)):
+        src_gs_node_id = len(satellites) + src_gid
+        d_path[src_gs_node_id] = {}
+        d_path_len[src_gs_node_id] = {}
+        for dst_gid in range(len(gsls)):
+            dst_gs_node_id = len(satellites) + dst_gid
+            d_path[src_gs_node_id][dst_gs_node_id] = -1
+            d_path_len[src_gs_node_id][dst_gs_node_id] = math.inf
+            # 注意这里是源节点的gsl
+            gsl = gsls[src_gid]
+            if gsl!=-1 and d_path_len[gsl][dst_gs_node_id] !=math.inf:
+                d_path[src_gs_node_id][dst_gs_node_id] = copy.deepcopy(d_path[gsl][dst_gs_node_id])
+                d_path[src_gs_node_id][dst_gs_node_id].insert(0,src_gs_node_id)
+                d_path_len[src_gs_node_id][dst_gs_node_id] = d_path_len[gsl][dst_gs_node_id] + 1
+    
 
 
     # Forwarding state
