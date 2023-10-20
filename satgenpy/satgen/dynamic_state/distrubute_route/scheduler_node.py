@@ -17,7 +17,7 @@ class Scheduler_node:
         self.sim_duration = sim_duration
         self.curr_slot = 0
         # 总共仿真的时隙数量
-        self.num_time_slot = math.ceil(sim_duration/self.time_step)
+        self.num_time_slot = math.ceil(sim_duration/self.time_step) # liu: math.ceil()向上取整,返回>=x的最小整数
         # 初始化time_event_scheduler 为[[],…,[]]
         self.time_event_scheduler = [[] for _ in range(self.num_time_slot)]
         ' time_event_scheduler 的元素为 func,arg* '

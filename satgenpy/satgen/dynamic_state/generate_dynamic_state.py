@@ -30,6 +30,8 @@ from .algorithm_free_one_only_gs_relays import algorithm_free_one_only_gs_relays
 from .algorithm_free_one_only_over_isls import algorithm_free_one_only_over_isls
 from .algorithm_paired_many_only_over_isls import algorithm_paired_many_only_over_isls
 from .algorithm_free_gs_one_sat_many_only_over_isls import algorithm_free_gs_one_sat_many_only_over_isls
+
+# liu:导入distribute中的包
 from .distrubute_route.satellite_node import Satellite_node
 from .distrubute_route.visible_helper import Visible_time_helper
 from .distrubute_route.sat_selector import Sat_selector
@@ -41,8 +43,8 @@ def generate_dynamic_state(
         simulation_end_time_ns,
         time_step_ns,
         offset_ns,
-        num_orbs,
-        num_sats_per_orbs,
+        num_orbs,   # 新增参数
+        num_sats_per_orbs,  # 新增参数
         satellites,
         ground_stations,
         list_isls,
@@ -62,11 +64,12 @@ def generate_dynamic_state(
     sat_net_graph_only_satellites_with_isls = nx.Graph()
     plus_grid_graph = nx.Graph()
 
-    for sid_1,sid_2 in list_isls:
+    for sid_1,sid_2 in list_isls:   # liu:对每一对ISL，计算两颗卫星之间的距离
         sat_distance_m = distance_m_between_satellites(satellites[sid_1], satellites[sid_2], str(epoch), str(epoch))
-        sat_net_graph_only_satellites_with_isls.add_edge(sid_1,sid_2,weight = sat_distance_m)
-        plus_grid_graph.add_edge(sid_1,sid_2,weight = 1)
+        sat_net_graph_only_satellites_with_isls.add_edge(sid_1,sid_2,weight = sat_distance_m)   # liu:有距离的星上拓扑
+        plus_grid_graph.add_edge(sid_1,sid_2,weight = 1)    # liu:边为1的星上拓扑
 
+    # liu:用于失效边 paper选星里面跑的时候还是0.01跑的
     import random
     # 百分之一的坏边
     print("\n 随机构建坏边，坏边率默认为百分之 1")
@@ -77,16 +80,19 @@ def generate_dynamic_state(
         sat_net_graph_only_satellites_with_isls[fail_edge[0]][fail_edge[1]]["weight"] = math.inf
 
     
-    time_step_ms = time_step_ns/1000/1000
-    simulation_end_time_s = simulation_end_time_ns/1000/1000/1000
+    time_step_ms = time_step_ns/1000/1000   # liu: time_step转换为ms
+    simulation_end_time_s = simulation_end_time_ns/1000/1000/1000   # liu: 总仿真时间转换为s
 
 
     print("\n 注意 astropy 的 Time 和 ephem.Date 的转换")
-    ephem_epoch = ephem.Date(epoch.datetime)
+    ephem_epoch = ephem.Date(epoch.datetime)    
+    # liu:将给定的 epoch.datetime（一个 Python datetime 对象）
+    # 转换为 ephem 库中的日期对象，并将结果存储在 ephem_epoch 变量中，以便后续进行天文计算或其他操作。
 
     # 建立卫星的虚拟节点
     print("\n satellite_nodes 建立中")   
     satellite_nodes = []
+    # liu:enumerate用于同时获取列表中的元素和它们的索引，sid是索引，_是占位符，表示不使用元素的值
     for sid,_ in enumerate(satellites):
         satellite_node = Satellite_node(sid, satellites[sid], plus_grid_graph,
                                     sat_net_graph_only_satellites_with_isls,ephem_epoch,time_step_ms, simulation_end_time_s)
@@ -112,10 +118,10 @@ def generate_dynamic_state(
 
     import pickle
     with open("visible_times.pkl","rb") as f:
-        visible_times = pickle.load(f)
+        visible_times = pickle.load(f)  # liu:这个文件是上面注释掉的部分生成的，见class:visible_time_helper.visible_times
 
     print("\n 建立选星器，并初始化 gsl ")
-    shift_between_last_and_first = 8
+    shift_between_last_and_first = 8    # liu:TODO 这个参数是干啥的
     
     sat_selector = Sat_selector(visible_times,num_orbs,num_sats_per_orbs,shift_between_last_and_first,ephem_epoch,time_step_ms, simulation_end_time_s)
 
@@ -124,6 +130,7 @@ def generate_dynamic_state(
         # 添加更新事件，表明 epoch 需要对每个 gs 的 gsl 更新两次
         for i in range(2):
             sat_selector.add_gsl_update_event(gid,i,0)
+            # def add_gsl_update_event(self,gid,gsl_to_update,slot_to_update_gsl):
 
     print(f"\n 初始化 gsl，此时 gsl 均为 -1 \n 初始化 forward_table_to_gsf" "\n 初始化 forward_table_to_sats"  "\n 初始化 init_state_of_edges")
     for satellite_node in satellite_nodes:

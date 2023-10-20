@@ -1,3 +1,6 @@
+# liu: 用于计算卫星相对于地面站的可见时间
+# 核心参数：visible_times,是一个二维字典，第一维为 gid，第二维为 sid，值为可见时间段[start, end]
+
 import ephem
 from satgen.ground_stations import read_ground_stations_extended
 from satgen.tles import read_tles
@@ -16,15 +19,15 @@ class Visible_time_helper:
             visible_times[gid] = {}
             for sid in range(len(satellites)):
                 visible_time = self.calculate_visible_time(satellites[sid], ground_stations[gid])
-                visible_times[gid][sid] = visible_time
-        self.visible_times = visible_times
+                visible_times[gid][sid] = visible_time  # liu: visible_time是一个包含两个元素的list[start, end]，为可见时间段
+        self.visible_times = visible_times  # liu: visible_times是一个二维字典，第一维为 gid，第二维为 sid，值为可见时间段
 
     def calculate_visible_time(self, satellite, ground_station):
         i = 0
         visible_flag = False
         while i <= self.sim_duration:
             ground_station.date = self.epoch + i * ephem.second
-            satellite.compute(ground_station)
+            satellite.compute(ground_station)   # liu:计算卫星与观测者的相对位置
             if satellite.alt * 180 / 3.1416 > self.min_elevation:  # 检查卫星的仰角是否大于最小仰角
                 visible_flag = True
                 start = ground_station.date

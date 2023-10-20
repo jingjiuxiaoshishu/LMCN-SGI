@@ -10,7 +10,7 @@ from typing import Dict
 from satgen.distance_tools import *
 
 
-class Satellite_node(Scheduler_node):
+class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
     def __init__(self,sid, satellite, plus_grid_graph,
                  sat_net_graph_only_satellites_with_isls, epoch,time_step, sim_duration):
         '''
@@ -21,8 +21,10 @@ class Satellite_node(Scheduler_node):
         super().__init__(epoch, time_step, sim_duration)
 
         self.satellite = satellite
-        self.init_satellite_topo(plus_grid_graph)
-        self.update_sat_net_graph_only_satellites_with_isls(sat_net_graph_only_satellites_with_isls)
+        self.init_satellite_topo(plus_grid_graph)   
+        # liu:deepcopy，将自己的属性satellite_topo设置为plus_grid_graph
+        self.update_sat_net_graph_only_satellites_with_isls(sat_net_graph_only_satellites_with_isls)    
+        # liu:deepcopy，设置自己的属性sat_net_graph_only_satellites_with_isls为输入参数
 
         self.sid = sid
 
@@ -43,7 +45,7 @@ class Satellite_node(Scheduler_node):
         self.state_of_isl_neighbors = {}
         ' key:sid   val： isl 邻居节点的状态，True or False'
         self.expected_slot_isl_neighbor_failed = {}
-        ' key:sid   val： isl 邻居节点的状态的有效实践，True or False'
+        ' key:sid   val： isl 邻居节点的状态的有效实践，True or False'  # liu:?TODO:这个变量的含义不是很清楚
 
         self.state_of_edges = {}
         '''
@@ -85,14 +87,16 @@ class Satellite_node(Scheduler_node):
     def update_forward_table_to_sats(self):
         self.update_satellite_topo()
         d_path = nx.single_source_dijkstra_path(self.satellite_topo, self.sid)
+        # liu:计算从sid到所有其他节点的最短路径，d_path为字典，键是目标节点，值为从源到该节点的最短路径
         d_path_len = nx.single_source_dijkstra_path_length(self.satellite_topo, self.sid)
+        # liu:计算从sid到所有其他节点的最短路径长度，d_path_len为字典，键是目标节点，值为从源到该节点的最短路径长度
         for dst_sid,path_len in d_path_len.items():
             # 注意路由表没有到本节点的项
-            if path_len != math.inf and dst_sid!=self.sid:
-                self.forward_table_to_sats[dst_sid] = d_path[dst_sid][1]
-                self.forward_cost_to_sats[dst_sid] = d_path_len[dst_sid]
+            if path_len != math.inf and dst_sid!=self.sid:  # liu:检查到目标卫星的路径长度是否为无穷大(不存在路径)，且目标卫星不是当前卫星自身
+                self.forward_table_to_sats[dst_sid] = d_path[dst_sid][1]    # liu:将源到目标卫星dst_sid的下一跳设置为d_path[dst_sid][1]
+                self.forward_cost_to_sats[dst_sid] = d_path_len[dst_sid]    # liu:将源到目标卫星dst_sid的路径长度设置为d_path_len[dst_sid]
             else:
-                self.forward_table_to_sats[dst_sid] = -1
+                self.forward_table_to_sats[dst_sid] = -1    # liu:将源到目标卫星dst_sid的下一跳设置为-1(不存在下一跳)
                 self.forward_cost_to_sats[dst_sid] = d_path_len[dst_sid]
 
     def del_isl_neighbor(self, neighbor_sid):
@@ -107,6 +111,7 @@ class Satellite_node(Scheduler_node):
             self.state_of_isl_neighbors[neighbor_sid] = True
             self.num_avail_neighbors = self.num_avail_neighbors + 1
 
+    # liu: TODO
     def init_state_of_edges(self):
         for edge in self.satellite_topo.edges():
             self.state_of_edges[edge[0],edge[1]] =True
@@ -273,18 +278,18 @@ class Satellite_node(Scheduler_node):
             self.slot_to_broadcast_failed_edges = self.slot_to_broadcast_failed_edges +  self.slot_num_fail_edges_broadcast_interval
 
     def update_state_of_edges(self):
-        for edge,edge_state in self.state_of_edges.items():
+        for edge,edge_state in self.state_of_edges.items(): # state_of_edges:边状态表，key为edge，值为true or false
             if (not self.state_of_edges[edge]) and (self.expected_slot_edge_rec[edge] < self.curr_slot):
                 self.change_edge_state(edge,True)
 
     def init_satellite_topo(self,plus_grid_graph):
-        self.satellite_topo = copy.deepcopy(plus_grid_graph)
+        self.satellite_topo = copy.deepcopy(plus_grid_graph)    # liu:deepcopy，创建一个完全独立的副本
 
     def update_satellite_topo(self):
-        self.update_state_of_edges()
-        nx.set_edge_attributes(self.satellite_topo, 1, "weight")
+        self.update_state_of_edges()    # liu:TODO，看往上两个函数
+        nx.set_edge_attributes(self.satellite_topo, 1, "weight")    # liu:设置权重为1
         for edge,edge_state in self.state_of_edges.items():
-            if not edge_state:
+            if not edge_state:  # liu:如果edge_state为false，则将边的权重设置为无穷大
                 self.satellite_topo[edge[0]][edge[1]]["weight"] = math.inf
 
     def control_helper(self):
@@ -380,7 +385,7 @@ class Satellite_node(Scheduler_node):
         self.forward_table_to_gs[gid] = next_hop
         self.forward_cost_to_gs[gid] = cost + 1
         
-
+    # liu: 初始化到gs的转发表，每两个gs之间的forward_table和cost为-1
     def init_forward_table_to_gs(self,len_gs):
         for i in range(len_gs):
             self.gsl[i] = [-1,-1]
@@ -391,6 +396,7 @@ class Satellite_node(Scheduler_node):
                     self.forward_table_to_gs[i][j] = -1
                     self.forward_cost_to_gs[i][j] = -1
                     
+    # liu: 初始化到卫星的转发表
     def init_forward_table_to_sats(self,len_sats):
         for i in  range(len_sats):
             if i != self.sid:
