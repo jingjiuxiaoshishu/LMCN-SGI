@@ -45,7 +45,10 @@ class Sat_selector(Scheduler_node):
         # 若无可见卫星，直接返回 -1
         if not sats_visible:
             return -1,-1
-
+        
+        
+        if self.gsls[gid][1-gsl_to_update]!=-1 and self.gsls[gid][1-gsl_to_update] in sats_visible:
+            del sats_visible[self.gsls[gid][1-gsl_to_update]]
         sid_linked_to = self.get_sid_with_longest_visible_time_in_group(list(sats_visible.keys()), sats_visible)
         self.gsls[gid][gsl_to_update] = sid_linked_to
 

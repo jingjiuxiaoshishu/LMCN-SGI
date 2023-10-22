@@ -121,7 +121,6 @@ def generate_dynamic_state(
 
     print("\n 添加更新事件，表明 epoch 需要对每个 gs 的 gsl 更新两次 ")
     for gid,gsl in sat_selector.gsls.items():
-        # 只更新一条 gsl 
         sat_selector.add_gsl_update_event(gid,0,0)
         sat_selector.add_gsl_update_event(gid,1,0)
 
