@@ -1,6 +1,7 @@
 import math
 from scipy.constants import speed_of_light
 
+# liu:Scheduler_node——基类
 class Scheduler_node:
     def __init__(self,epoch,time_step, sim_duration):
         '''
@@ -20,7 +21,7 @@ class Scheduler_node:
         self.num_time_slot = math.ceil(sim_duration/self.time_step) # liu: math.ceil()向上取整,返回>=x的最小整数
         # 初始化time_event_scheduler 为[[],…,[]]
         self.time_event_scheduler = [[] for _ in range(self.num_time_slot)]
-        ' time_event_scheduler 的元素为 func,arg* '
+        # delete(' time_event_scheduler 的元素为 func,arg* ')
 
     def get_trans_slot_cost(self, distance):
         time_cost = distance / speed_of_light

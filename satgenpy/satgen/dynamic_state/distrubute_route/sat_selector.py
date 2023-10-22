@@ -3,6 +3,7 @@ import ephem
 from  .scheduler_node import Scheduler_node
 
 # liu: add comments
+# liu:Sat_selector——主要实现分类选星的功能，处理gsl更新
 class Sat_selector(Scheduler_node):
     def __init__(self,visible_times,num_orbs,num_sats_per_orbs,shift_between_last_and_first,epoch,time_step, sim_duration):
         super().__init__(epoch,time_step, sim_duration)
@@ -22,6 +23,7 @@ class Sat_selector(Scheduler_node):
     def check_gsl(self,gid,sid):
         pass
 
+    # liu:分类函数，将可见卫星根据飞行方向分为两组，TODO
     def classificate(self, sids_visible):
         unclassified_sat_index = {}
         group_1 = []
@@ -94,7 +96,7 @@ class Sat_selector(Scheduler_node):
                 sats_visible[sid] = slot_visible_time_left + 1
         return sats_visible
 
-    # liu:获取分组内的剩余可见时间最长的卫星的sid
+    # liu:获取分组内的可见时间最长的卫星的sid
     def get_sid_with_longest_visible_time_in_group(self,group,sats_visible):
         longest_visible_time = 0
         sid_with_longest_visible_time = -1
@@ -104,6 +106,8 @@ class Sat_selector(Scheduler_node):
         return sid_with_longest_visible_time
 
     # 更新一个gs链接的gsl
+    # liu:1.获取可见卫星，2.可见卫星分类，2.分类后分情况确定需要切换的卫星sid_linked_to
+    # return 返回链接的卫星的sid，以及剩余可见时隙
     def update_sats_a_gs_linked_to(self,gid,gsl_to_update):
         sats_visible = self.get_sats_visible(gid)   # liu:获得gid对应地面站的可见卫星，key为sid，值为剩余可见时隙
         # 若无可见卫星，直接返回 -1
@@ -152,7 +156,7 @@ class Sat_selector(Scheduler_node):
     def get_sid_from_index(self,orb_id,sat_id_in_orb):
         return orb_id*self.num_sats_per_orbs+sat_id_in_orb
 
-    # liu:TODO
+    # liu:可以以当前卫星为基准，索引找到其他位置的卫星(not use)
     def get_neighbor_index(self,sid,x,y):
         orb_id, sat_id_in_orb = self.get_index_from_sid(sid)
         neighbor_orb_id = orb_id+x
@@ -176,7 +180,7 @@ class Sat_selector(Scheduler_node):
             }
             self.time_event_scheduler[slot_to_update_gsl].append(msg)   # liu:添加消息到时间事件调度器
 
-    # liu:处理消息
+    # liu:处理gsl_update消息
     def deal_msg(self,msg):
         if msg["type"] == "gsl_update":
             gid = msg["gid"]
@@ -187,6 +191,7 @@ class Sat_selector(Scheduler_node):
             else:
                 self.add_gsl_update_event(gid,gsl_to_update,self.curr_slot+1)
 
+    # liu:处理curr_slot中的msg
     def process(self):
         for msg in self.time_event_scheduler[self.curr_slot]:
             self.deal_msg(msg)

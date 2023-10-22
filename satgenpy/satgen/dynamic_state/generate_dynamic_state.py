@@ -68,6 +68,7 @@ def generate_dynamic_state(
         sat_distance_m = distance_m_between_satellites(satellites[sid_1], satellites[sid_2], str(epoch), str(epoch))
         sat_net_graph_only_satellites_with_isls.add_edge(sid_1,sid_2,weight = sat_distance_m)   # liu:有距离的星上拓扑
         plus_grid_graph.add_edge(sid_1,sid_2,weight = 1)    # liu:边为1的星上拓扑
+        # liu:对于add_edge，如果涉及的节点不存在，则会自动添加节点，因此前面没有单独add_node()
 
     # liu:用于失效边 paper选星里面跑的时候还是0.01跑的
     import random
@@ -171,30 +172,32 @@ def generate_dynamic_state(
         # 6、sat_net_graph_only_satellites_with_isls 更新
 
         print("\n sat_selector.process()")
-        sat_selector.process()
+        sat_selector.process()  # liu:处理msg，更新gsl（1. 更新gsl）
 
 
         print("\n satellite_node.process() \n 依据gsl是否变化和卫星自身路由表是否变化，确定是否需要更新 gsl 及对应路由表")
         import threading
         def worker(satellite_nodes,start,stop,sat_net_graph_only_satellites_with_isls,sat_selector):
             for satellite_node in satellite_nodes[start:stop]:
-                satellite_node.update_sat_net_graph_only_satellites_with_isls(sat_net_graph_only_satellites_with_isls)
-                satellite_node.process()
+                satellite_node.update_sat_net_graph_only_satellites_with_isls(sat_net_graph_only_satellites_with_isls)  # liu:deepcopy
+                satellite_node.process()    # liu:处理msg，如果need_to_update_forward_table_to_sats，则更新卫星到其他卫星的路由表（2. 更新星上路由表）
                 # 不管有没有变动，每个时隙都复制一遍 sat_selector 的 gsls，并重新计算 sat to gs
                 if  satellite_node.need_to_update_forward_table_to_sats:
                     for gid,gsl in sat_selector.gsls.items():
                         for i in range(2):
-                            satellite_node.update_gsl(gid,gsl[i],i)
+                            satellite_node.update_gsl(gid,gsl[i],i) 
+                            # liu:这里更新地面站gid的第i条gsl连接的卫星为gsl[i]，然后更新从卫星satellite_node到gid的路由表（3.更新卫星到地面站）
                 elif len(sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]) > 0:
                     for msg in sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]:
                         gid = msg["gid"]
                         gsl_to_update = msg["gsl_to_update"]
                         satellite_node.update_gsl(gid,sat_selector.gsls[gid][gsl_to_update],gsl_to_update)
+                        # liu:更新地面站gid的gsl_to_update连接的卫星为sat_selector.gsls[gid][gsl_to_update]，然后更新卫星到该地面站的路由表
 
         print("\n 构建多线程参数")
-        threads = []
-        satellite_node_slices = []
-        slices_step = 330
+        threads = []    # liu:存放线程对象
+        satellite_node_slices = []  # liu:存放分割的satellite_nodes的索引范围
+        slices_step = 330   # liu:步长，决定每一线程处理多少satellite_nodes中的元素
         start = 0
         stop = start + slices_step
         while stop < len(satellite_nodes):
@@ -207,6 +210,8 @@ def generate_dynamic_state(
             satellite_node_slices.append((start,stop))
         
         print("建立线程")
+
+        # liu:每一个分片的索引范围，都创建一个新的线程。这个线程的目标函数是worker
         for start,stop in satellite_node_slices:
             thread = threading.Thread(target=worker, kwargs={"satellite_nodes": satellite_nodes, 
                                                              "start":start,
@@ -214,10 +219,13 @@ def generate_dynamic_state(
                                                              "sat_net_graph_only_satellites_with_isls": sat_net_graph_only_satellites_with_isls,
                                                              "sat_selector":sat_selector})
             threads.append(thread)
+
+        # liu:启动所有线程，并发执行
         print("调度线程")
         for thread in threads:
             thread.start()
 
+        # liu:join，等待所有子线程的完成
         for thread in threads:
             thread.join()
         print("全部线程执行完毕")
@@ -275,7 +283,7 @@ def generate_dynamic_state_distribute(
     
     #################################
     if enable_verbose_logs:
-        print("\nISL INFORMATION")
+        print("\nISL INFORMATION")  # liu:从ISL INFORMATION开始，之前的部分如设置图，添加节点，在前面代码都设置好了
 
     # ISL edges
     total_num_isls = 0
@@ -317,6 +325,9 @@ def generate_dynamic_state_distribute(
     if enable_verbose_logs:
         print("\nGSL INTERFACE INFORMATION")
 
+    # liu:获取list_gsl_interfaces_info的前len个数据（从gsl_interfaces_info.txt读取的）
+    # 使用map函数和一个lambda匿名函数，从每个字典中提取number_of_interfaces的值。
+    # 将结果转换为一个列表并存储到satellite_gsl_if_count_list中。
     satellite_gsl_if_count_list = list(map(
         lambda x: x["number_of_interfaces"],
         list_gsl_interfaces_info[0:len(satellite_nodes)]
@@ -332,7 +343,7 @@ def generate_dynamic_state_distribute(
         print("  > Max. GSL IFs/ground_station... " + str(np.max(ground_station_gsl_if_count_list)))
 
 
-
+    # liu:这里直接把algorithm_free_one_only_over_isls中的内容写到这里，原本需要根据dynamic_state_algorithm进行算法选择
     print("写入 gsl 接口的带宽 gsl_if_bandwidth_")
     output_filename = output_dynamic_state_dir + "/gsl_if_bandwidth_" + str(time_since_epoch_ns) + ".txt"
     if enable_verbose_logs:
@@ -361,16 +372,16 @@ def generate_dynamic_state_distribute(
         forward_cost_gs_to_gs[gid_1] = {}
         for gid_2 in range(len(gsls)):
             if gid_1 != gid_2:
-                forward_table_gs_to_gs[gid_1][gid_2] = -1
-                forward_cost_gs_to_gs[gid_1][gid_2] = math.inf
+                forward_table_gs_to_gs[gid_1][gid_2] = -1   # liu:默认不可达
+                forward_cost_gs_to_gs[gid_1][gid_2] = math.inf  # liu:默认成本为inf
 
-    # 根据 gsls 和 卫星原本拥有的 sat to gs 路由表，计算 gs to gs 的路由表
+    # 根据 gsls 和 卫星原本拥有的 sat to gs 路由表，计算 gs to gs 的路由表(4.更新地面站到地面站的路由表)
     for gid_1 in range(len(gsls)):
         for gid_2 in range(len(gsls)):
             if gid_1 != gid_2:
                 next_hop = -1
                 cost = math.inf
-                for sid in sat_selector.gsls[gid_1]:
+                for sid in sat_selector.gsls[gid_1]:    # liu:找到与gid_1相连的卫星，根据sat_to_gs路由表计算地面站之间的路由
                     if sid != -1:
                         if satellite_nodes[sid].forward_cost_to_gs[gid_2] < cost:
                             next_hop = sid
@@ -378,7 +389,7 @@ def generate_dynamic_state_distribute(
                 forward_table_gs_to_gs[gid_1][gid_2] = next_hop
                 forward_cost_gs_to_gs[gid_1][gid_2] = cost + 1
 
-    # Forwarding state
+    # Forwarding state  liu:生成forwarding state路由表
     fstate = {}
     gid_to_sat_gsl_if_idx = [0] * len(gsls) 
 
@@ -444,7 +455,7 @@ def generate_dynamic_state_distribute(
     return {"fstate": fstate}
 
 
-
+# liu:这个是hypatia原本的函数，没有改动
 def generate_dynamic_state_at(
         output_dynamic_state_dir,
         epoch,
