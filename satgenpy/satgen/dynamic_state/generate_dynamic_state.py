@@ -188,6 +188,7 @@ def generate_dynamic_state(
 
         print("\n satellite_node.process() \n 依据gsl是否变化和卫星自身路由表是否变化，确定是否需要更新 gsl 及对应路由表")
         import threading
+        # TODO：多线程，涉及消息同步问题，如果分开处理，发送的各种消息如何同步，问嘉植
         def worker(satellite_nodes,start,stop,sat_net_graph_only_satellites_with_isls,sat_selector):
             for satellite_node in satellite_nodes[start:stop]:
                 satellite_node.update_sat_net_graph_only_satellites_with_isls(sat_net_graph_only_satellites_with_isls)  # liu:deepcopy
