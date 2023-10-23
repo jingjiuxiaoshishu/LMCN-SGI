@@ -376,7 +376,7 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
 
     # liu:处理消息队列中的msg，如果有需要的话，更新卫星的路由表
     # liu:process函数：
-    # 1.将need_to_update_forward_table_to_sats设置为false
+    # 1.将need_to_update_forward_table_to_sats设置为false(每个时隙都会初始化为false，如果有边状态改变，则设置为true，需要更新路由表)
     # 2.遍历当前时隙的消息队列，处理消息
     # 3.执行control_helper函数
     # 4.如果need_to_update_forward_table_to_sats为true，更新卫星的路由表(自身视角，权值为1)

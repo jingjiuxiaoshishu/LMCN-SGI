@@ -392,7 +392,7 @@ def generate_dynamic_state_distribute(
                 forward_table_gs_to_gs[gid_1][gid_2] = -1   # liu:默认不可达
                 forward_cost_gs_to_gs[gid_1][gid_2] = math.inf  # liu:默认成本为inf
 
-    # 根据 gsls 和 卫星原本拥有的 sat to gs 路由表，计算 gs to gs 的路由表(4.更新地面站到地面站的路由表)
+    # liu:根据 gsls 和 卫星原本拥有的 sat to gs 路由表，计算 gs to gs 的路由表(4.更新地面站到地面站的路由表)
     for gid_1 in range(len(gsls)):
         for gid_2 in range(len(gsls)):
             if gid_1 != gid_2:
