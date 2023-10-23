@@ -23,12 +23,14 @@ class Scheduler_node:
         self.time_event_scheduler = [[] for _ in range(self.num_time_slot)]
         # delete(' time_event_scheduler 的元素为 func,arg* ')
 
+    # liu:计算转发传输消息花费的时隙数
     def get_trans_slot_cost(self, distance):
         time_cost = distance / speed_of_light
         # 从发送到接收消息花费的时隙
         slot_cost = math.ceil(time_cost / self.time_step)
         return slot_cost
 
+    # liu:更新时隙+1
     def update_curr_slot(self):
         self.curr_slot = self.curr_slot + 1
 

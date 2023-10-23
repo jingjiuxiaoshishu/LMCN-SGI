@@ -61,6 +61,10 @@ def generate_dynamic_state(
         raise ValueError("Offset must be a multiple of time_step_ns")
     
     # 建立 有距离的星上拓扑图 和 边恒为一的星上拓扑图
+    # liu:
+    # plus_grid_graph:卫星根据收集信息自己记录的拓扑状态
+    # sat_net_graph_only_satellites_with_isls:记录实际星上拓扑，
+    # 作为卫星之间通信是否可达的依据，节点之间权值为实际的distance，计算发送msg需要的时间
     sat_net_graph_only_satellites_with_isls = nx.Graph()
     plus_grid_graph = nx.Graph()
 
@@ -70,7 +74,7 @@ def generate_dynamic_state(
         plus_grid_graph.add_edge(sid_1,sid_2,weight = 1)    # liu:边为1的星上拓扑
         # liu:对于add_edge，如果涉及的节点不存在，则会自动添加节点，因此前面没有单独add_node()
 
-    # liu:用于失效边 paper选星里面跑的时候还是0.01跑的
+    # liu:用于失效边 实验按照0.01计算，坏边的实际拓扑距离设置为math.inf
     import random
     # 百分之一的坏边
     print("\n 随机构建坏边，坏边率默认为百分之 1")
@@ -85,7 +89,7 @@ def generate_dynamic_state(
     simulation_end_time_s = simulation_end_time_ns/1000/1000/1000   # liu: 总仿真时间转换为s
 
 
-    print("\n 注意 astropy 的 Time 和 ephem.Date 的转换")
+    print("\n 注意 astropy 的 Time 和 ephem.Date 的转换")   #liu:astropy和ephem都是python的天文计算库
     ephem_epoch = ephem.Date(epoch.datetime)    
     # liu:将给定的 epoch.datetime（一个 Python datetime 对象）
     # 转换为 ephem 库中的日期对象，并将结果存储在 ephem_epoch 变量中，以便后续进行天文计算或其他操作。
@@ -119,11 +123,14 @@ def generate_dynamic_state(
 
     import pickle
     with open("visible_times.pkl","rb") as f:
-        visible_times = pickle.load(f)  # liu:这个文件是上面注释掉的部分生成的，见class:visible_time_helper.visible_times
+        visible_times = pickle.load(f)  
+        # liu:这个文件是上面注释掉的部分生成的，见class:visible_time_helper.visible_times
+        # liu:visible_times是卫星相对于地面站的可见时间，是一个二维字典，第一维为 gid，第二维为 sid，值为可见时间段[start, end]
 
     print("\n 建立选星器，并初始化 gsl ")
-    shift_between_last_and_first = 8    # liu:TODO 这个参数是干啥的
+    shift_between_last_and_first = 8    # liu:not used
     
+    # liu:创建选星器，初始化gsl
     sat_selector = Sat_selector(visible_times,num_orbs,num_sats_per_orbs,shift_between_last_and_first,ephem_epoch,time_step_ms, simulation_end_time_s)
 
     print("\n 添加更新事件，表明 epoch 需要对每个 gs 的 gsl 更新两次 ")
@@ -131,19 +138,23 @@ def generate_dynamic_state(
         # 添加更新事件，表明 epoch 需要对每个 gs 的 gsl 更新两次
         for i in range(2):
             sat_selector.add_gsl_update_event(gid,i,0)
-            # def add_gsl_update_event(self,gid,gsl_to_update,slot_to_update_gsl):
+            # liu:
+            # def add_gsl_update_event(self,gid,gsl_to_update,slot_to_update_gsl)
+            # gsl_to_update为i，slot_to_update_gsl为0，表示在第0个时隙更新gsl
+            # 在第0个时隙在time_event_scheduler中为两条gsl添加gsl更新事件
 
     print(f"\n 初始化 gsl，此时 gsl 均为 -1 \n 初始化 forward_table_to_gsf" "\n 初始化 forward_table_to_sats"  "\n 初始化 init_state_of_edges")
     for satellite_node in satellite_nodes:
-        satellite_node.init_forward_table_to_gs(len(sat_selector.gsls))
-        satellite_node.init_forward_table_to_sats(len(satellite_nodes))
-        satellite_node.init_state_of_edges()
-        satellite_node.update_forward_table_to_sats()
+        satellite_node.init_forward_table_to_gs(len(sat_selector.gsls)) # liu:初始化gs之间的路由表，每两个gs之间的forward_table和cost为-1
+        satellite_node.init_forward_table_to_sats(len(satellite_nodes)) # liu:初始化卫星到卫星的路由表
+        satellite_node.init_state_of_edges()    # liu:初始化边状态为true（好边）
+        satellite_node.update_forward_table_to_sats()   # liu:根据卫星的self.satellite_topo计算从self.sid到其他卫星的最短路径
 
 
     prev_output = None
     i = 0
-    total_iterations = ((simulation_end_time_ns - offset_ns) / time_step_ns)
+    total_iterations = ((simulation_end_time_ns - offset_ns) / time_step_ns)    # liu:总迭代次数
+    # liu:每个时隙，执行如下循环
     for time_since_epoch_ns in range(offset_ns, simulation_end_time_ns, time_step_ns):
         if not enable_verbose_logs:
             if i % int(math.floor(total_iterations) / 10.0) == 0:
@@ -153,7 +164,7 @@ def generate_dynamic_state(
             i += 1
 
         
-        # sat_net_graph_only_satellites_with_isls 更新
+        # sat_net_graph_only_satellites_with_isls 更新（实际拓扑，两个节点之间的权值设置为实际拓扑，坏边为math.inf）
         print("\n sat_net_graph_only_satellites_with_isls 更新")
         for src,dst,attrs in sat_net_graph_only_satellites_with_isls.edges(data=True):
             edge = (src,dst)
@@ -172,7 +183,7 @@ def generate_dynamic_state(
         # 6、sat_net_graph_only_satellites_with_isls 更新
 
         print("\n sat_selector.process()")
-        sat_selector.process()  # liu:处理msg，更新gsl（1. 更新gsl）
+        sat_selector.process()  # liu:处理上述添加的gsl更新msg，更新gsl（1. 更新gsl）
 
 
         print("\n satellite_node.process() \n 依据gsl是否变化和卫星自身路由表是否变化，确定是否需要更新 gsl 及对应路由表")
@@ -181,6 +192,12 @@ def generate_dynamic_state(
             for satellite_node in satellite_nodes[start:stop]:
                 satellite_node.update_sat_net_graph_only_satellites_with_isls(sat_net_graph_only_satellites_with_isls)  # liu:deepcopy
                 satellite_node.process()    # liu:处理msg，如果need_to_update_forward_table_to_sats，则更新卫星到其他卫星的路由表（2. 更新星上路由表）
+                # liu: 关于process：处理每个时隙卫星必要做的一些事情，包括：
+                # 1.遍历卫星的消息队列，处理消息
+                # 2.处理边状态更新
+                # 3.定时发送hello消息确认链路状态
+                # 4.定时发送fail消息，通知链路失效
+
                 # 不管有没有变动，每个时隙都复制一遍 sat_selector 的 gsls，并重新计算 sat to gs
                 if  satellite_node.need_to_update_forward_table_to_sats:
                     for gid,gsl in sat_selector.gsls.items():

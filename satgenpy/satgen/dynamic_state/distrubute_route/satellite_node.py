@@ -87,7 +87,7 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
         self.slot_to_hello = 0
         self.slot_to_broadcast_failed_edges = 0
 
-     # 由 topo 计算卫星间的路由表
+     # 由 topo 计算卫星间的路由表   从self.sid到其他卫星的最短路径
     def update_forward_table_to_sats(self):
         self.update_satellite_topo()
         d_path = nx.single_source_dijkstra_path(self.satellite_topo, self.sid)
@@ -115,7 +115,7 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
             self.state_of_isl_neighbors[neighbor_sid] = True
             self.num_avail_neighbors = self.num_avail_neighbors + 1
 
-    # liu: 初始化边状态为true
+    # liu:初始化边状态为true（好边）
     def init_state_of_edges(self):
         for edge in self.satellite_topo.edges():
             self.state_of_edges[edge[0],edge[1]] =True
@@ -128,29 +128,33 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
     def add_edge_in_satellite_topo(self, src_id, dst_sid):
         self.satellite_topo.edges[src_id, dst_sid] = 1
 
+    # 发送hello msg给邻居节点
     def hello(self):
         msg = {
             "type": "hello",
-            "src_sid": self.sid,
+            "src_sid": self.sid,    # liu:源节点id为自身
             "msg_seq": self.get_seq(),
-            "src_num_avail_neighbors" : self.num_avail_neighbors
+            "src_num_avail_neighbors" : self.num_avail_neighbors    # liu:available的邻居数
         }
-        for neighbor_sid,_ in self.isl_neighbors.items():
+        for neighbor_sid,_ in self.isl_neighbors.items():   # liu:如果邻居可达，则send一个hello消息
             if self.sat_net_graph_only_satellites_with_isls[self.sid][neighbor_sid]["weight"] != math.inf:
                 self.sent_msg(msg,neighbor_sid)
 
+    # liu:处理hello消息，更新self与src_sid卫星之间链路预计失效的时间expected_slot_isl_neighbor_failed
     def deal_hello(self,msg):
         src_sid = msg["src_sid"]
         src_num_avail_neighbors = msg["src_num_avail_neighbors"]
-        self.num_avail_neighbors_of_isl_neighbor[src_sid] =  src_num_avail_neighbors
+        self.num_avail_neighbors_of_isl_neighbor[src_sid] =  src_num_avail_neighbors    # liu:not used
         self.expected_slot_isl_neighbor_failed[src_sid] = self.curr_slot + 3 * self.slot_num_hello_interval
         # print(self.curr_slot, self.sid,src_sid,self.expected_slot_isl_neighbor_failed[src_sid])
 
+    # liu:定时发送hello消息给可达的邻居节点
     def hello_helper(self):
         if self.curr_slot == self.slot_to_hello:
             self.hello()
             self.slot_to_hello = self.slot_to_hello + self.slot_num_hello_interval
 
+    # liu:更新边状态
     def change_edge_state(self,edge,edge_state):
         if edge_state:
             if not self.state_of_edges[edge[0],edge[1]]:
@@ -164,8 +168,10 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
             self.state_of_edges[edge[1], edge[0]] = False
             self.expected_slot_edge_rec[edge[0],edge[1]] = self.curr_slot + 3 * self.slot_num_fail_edges_broadcast_interval
             self.expected_slot_edge_rec[edge[1],edge[0]] = self.curr_slot + 3 * self.slot_num_fail_edges_broadcast_interval
+            # liu:expected_slot_edge_rec记录失效边未来自动恢复的slot
+            # 如果卫星收到一个失效边消息，然后三个失效边转发周期没有再次收到改失效边消息，就会自动恢复
 
-
+    # liu:广播发送边更新的消息
     def broadcast_edge_to_update(self,edge,edge_state):
         msg = {
             "type": "edge_to_update",
@@ -179,6 +185,7 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
             if self.state_of_isl_neighbors[neighbor_sid]:
                 self.sent_msg(msg, neighbor_sid)
 
+    # 处理edge_to_update消息，更新边状态，转发消息  liu:卫星接受到edge_to_update消息后，维护自身的边状态，进一步转发消息
     def deal_edge_to_update(self,msg):
         src_sid = msg["src_sid"]
         msg_seq = msg["msg_seq"]
@@ -281,11 +288,13 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
                 self.broadcast_failed_edge(edges)
             self.slot_to_broadcast_failed_edges = self.slot_to_broadcast_failed_edges +  self.slot_num_fail_edges_broadcast_interval
 
+    # liu:更新边状态，TODO
     def update_state_of_edges(self):
         for edge,edge_state in self.state_of_edges.items(): # state_of_edges:边状态表，key为edge，值为true or false
             if (not self.state_of_edges[edge]) and (self.expected_slot_edge_rec[edge] < self.curr_slot):
                 self.change_edge_state(edge,True)
 
+    # liu:初始化拓扑，satellite_topo设置为plus_grid_graph
     def init_satellite_topo(self,plus_grid_graph):
         self.satellite_topo = copy.deepcopy(plus_grid_graph)    # liu:deepcopy，创建一个完全独立的副本
 
@@ -297,8 +306,13 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
                 self.satellite_topo[edge[0]][edge[1]]["weight"] = math.inf
 
     def control_helper(self):
-        edges_to_update = {}
+        edges_to_update = {}    # liu:记录需要更新的edge
         for neighbor_id,slot in self.expected_slot_isl_neighbor_failed.items():
+            # liu:
+            # expected_slot_isl_neighbor_failed中存储的为到邻居节点链路的预计失效slot
+            # 如果当前时隙小于等于预计失效时隙且邻居节点链路为false，则将邻居节点链路设置为true
+            # 如果当前时隙大于预计失效时隙且邻居节点链路为true，则将邻居节点链路设置为false
+
             # 如果边由过期变为有效
             if slot >= self.curr_slot and not self.state_of_isl_neighbors[neighbor_id]:
                 self.add_isl_neighbor(neighbor_id)
@@ -307,13 +321,15 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
             elif slot < self.curr_slot and self.state_of_isl_neighbors[neighbor_id]:
                 self.del_isl_neighbor(neighbor_id)
                 edges_to_update[(self.sid, neighbor_id)] = False
-        # hello
+        # liu:定时发送hello消息给邻居节点
         self.hello_helper()
         # 修改需要更新的边的状态
         # 生成并广播边更新的消息
+        # liu:根据edges_to_update的记录，更新边的状态，然后广播边更新的消息
         for edge,edge_state in edges_to_update.items():
             self.change_edge_state(edge,edge_state)
             self.broadcast_edge_to_update(edge, edge_state)
+        # liu:定时广播失效边的消息
         self.broadcast_failed_edge_helper()
 
     def update_sat_net_graph_only_satellites_with_isls(self,sat_net_graph_only_satellites_with_isls):
@@ -332,6 +348,7 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
             is_or_not = True
         return is_or_not
 
+    # liu:not used
     def is_good_good_sat(self):
         if self.num_avail_neighbors != 4:
             return False
@@ -340,12 +357,14 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
                 return False
         return True
 
+    # liu:发送消息,将msg插入到转发的邻居的time_event_scheduler中，具体插入到哪里，取决于当前时隙和转发所需时隙
     def sent_msg(self,msg,dst_sid):
         if self.sat_net_graph_only_satellites_with_isls[self.sid][dst_sid]["weight"] != math.inf:
             slot_cost = self.get_trans_slot_cost(self.sat_net_graph_only_satellites_with_isls[self.sid][dst_sid]["weight"])
             if self.curr_slot + slot_cost < len(self.time_event_scheduler):
                 self.isl_neighbors[dst_sid].time_event_scheduler[self.curr_slot + slot_cost].append(msg)
 
+    # liu:消息处理
     def deal_msg(self,msg):
         msg_type = msg["type"]
         if msg_type == "hello":
@@ -356,13 +375,20 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
             self.deal_failed_edge(msg)
 
     # liu:处理消息队列中的msg，如果有需要的话，更新卫星的路由表
+    # liu:process函数：
+    # 1.将need_to_update_forward_table_to_sats设置为false
+    # 2.遍历当前时隙的消息队列，处理消息
+    # 3.执行control_helper函数
+    # 4.如果need_to_update_forward_table_to_sats为true，更新卫星的路由表(自身视角，权值为1)
+    # 5.更新当前时隙+1
+
     def process(self):
         self.need_to_update_forward_table_to_sats = False   # 一开始设置为false，在deal_edge_to_update中执行更新操作
         for msg in self.time_event_scheduler[self.curr_slot]:
             self.deal_msg(msg)
-        self.control_helper()   # liu:TODO
+        self.control_helper()
         if self.need_to_update_forward_table_to_sats:
-            self.update_forward_table_to_sats()
+            self.update_forward_table_to_sats() # liu:由 topo 计算卫星间的路由表   从self.sid到其他卫星的最短路径
         # 执行完当前时隙的任务后，更新本节点时隙
         self.update_curr_slot() # liu:current_slot+1
 
@@ -391,7 +417,7 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
         self.forward_table_to_gs[gid] = next_hop
         self.forward_cost_to_gs[gid] = cost + 1
         
-    # liu: 初始化卫星到gs的路由表，每两个gs之间的forward_table和cost为-1
+    # liu:初始化gs之间的路由表，每两个gs之间的forward_table和cost为-1
     def init_forward_table_to_gs(self,len_gs):
         for i in range(len_gs):
             self.gsl[i] = [-1,-1]
@@ -402,7 +428,7 @@ class Satellite_node(Scheduler_node):   #liu:继承于scheduler_node
                     self.forward_table_to_gs[i][j] = -1
                     self.forward_cost_to_gs[i][j] = -1
                     
-    # liu: 初始化卫星到卫星的路由表
+    # liu:初始化卫星到卫星的路由表
     def init_forward_table_to_sats(self,len_sats):
         for i in  range(len_sats):
             if i != self.sid:

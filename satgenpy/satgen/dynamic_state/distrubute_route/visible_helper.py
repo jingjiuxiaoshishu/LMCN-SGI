@@ -22,12 +22,14 @@ class Visible_time_helper:
                 visible_times[gid][sid] = visible_time  # liu: visible_time是一个包含两个元素的list[start, end]，为可见时间段
         self.visible_times = visible_times  # liu: visible_times是一个二维字典，第一维为 gid，第二维为 sid，值为可见时间段
 
+    # liu:计算satellite相对于ground_station的可见时间
     def calculate_visible_time(self, satellite, ground_station):
         i = 0
         visible_flag = False
         while i <= self.sim_duration:
             ground_station.date = self.epoch + i * ephem.second
             satellite.compute(ground_station)   # liu:计算卫星与观测者的相对位置
+            # liu:将弧度转化为角度，这里应该用math.Pi吧？TODO
             if satellite.alt * 180 / 3.1416 > self.min_elevation:  # 检查卫星的仰角是否大于最小仰角
                 visible_flag = True
                 start = ground_station.date

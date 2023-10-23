@@ -186,6 +186,8 @@ class Sat_selector(Scheduler_node):
             gid = msg["gid"]
             gsl_to_update = msg["gsl_to_update"]
             sid,visible_slot_left = self.update_sats_a_gs_linked_to(gid,gsl_to_update)  # 更新gsl
+            # liu:更新gsl之后，如果没有链接到的卫星，就在下一个时隙继续添加一个更新事件
+            # 如果有链接到的卫星，在这个卫星服务时间结束后，再添加一个更新事件
             if sid!= -1:
                 self.add_gsl_update_event(gid,gsl_to_update,self.curr_slot+visible_slot_left)
             else:
