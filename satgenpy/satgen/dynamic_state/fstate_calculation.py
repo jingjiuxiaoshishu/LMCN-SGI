@@ -1,5 +1,7 @@
 import math
 import networkx as nx
+# liu: TODO 这部分贡献比较薄弱，可以考虑论文简单提一下，核心去写关于用户的算法 （to jiazhi）
+# 每个时隙，切换和保留是两个极端，是否有权衡，有待研究 TODO
 
 # liu: M-GSP算法基本保持原先hypatia的写法和流程，只是对GSP算法进行了修改。
 # 但是基本的GSP算法，在每个时隙进行路由更新都需要重新计算最短路，
