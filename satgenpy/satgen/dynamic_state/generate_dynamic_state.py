@@ -188,83 +188,84 @@ def generate_dynamic_state(
 
         print("\n satellite_node.process() \n 依据gsl是否变化和卫星自身路由表是否变化，确定是否需要更新 gsl 及对应路由表")
         import threading
-        # TODO：多线程，涉及消息同步问题，如果分开处理，发送的各种消息如何同步，问嘉植
-        def worker(satellite_nodes,start,stop,sat_net_graph_only_satellites_with_isls,sat_selector):
-            for satellite_node in satellite_nodes[start:stop]:
-                satellite_node.update_sat_net_graph_only_satellites_with_isls(sat_net_graph_only_satellites_with_isls)  # liu:deepcopy
-                satellite_node.process()    # liu:处理msg，如果need_to_update_forward_table_to_sats，则更新卫星到其他卫星的路由表（2. 更新星上路由表）
-                # liu: 关于process：处理每个时隙卫星必要做的一些事情，包括：
-                # 1.遍历卫星的消息队列，处理消息
-                # 2.处理边状态更新
-                # 3.定时发送hello消息确认链路状态
-                # 4.定时发送fail消息，通知链路失效
+        # TODO:多线程，涉及消息同步问题，如果分开处理，发送的各种消息如何同步，问嘉植
+        # jiazhi_Re: 理论上这里写法是有问题的，应该用下面那个没有多线程的写法
+        # def worker(satellite_nodes,start,stop,sat_net_graph_only_satellites_with_isls,sat_selector):
+        #     for satellite_node in satellite_nodes[start:stop]:
+        #         satellite_node.update_sat_net_graph_only_satellites_with_isls(sat_net_graph_only_satellites_with_isls)  # liu:deepcopy
+        #         satellite_node.process()    # liu:处理msg，如果need_to_update_forward_table_to_sats，则更新卫星到其他卫星的路由表（2. 更新星上路由表）
+        #         # liu: 关于process：处理每个时隙卫星必要做的一些事情，包括：
+        #         # 1.遍历卫星的消息队列，处理消息
+        #         # 2.处理边状态更新
+        #         # 3.定时发送hello消息确认链路状态
+        #         # 4.定时发送fail消息，通知链路失效
 
-                # 不管有没有变动，每个时隙都复制一遍 sat_selector 的 gsls，并重新计算 sat to gs
-                if  satellite_node.need_to_update_forward_table_to_sats:
-                    for gid,gsl in sat_selector.gsls.items():
-                        for i in range(2):
-                            satellite_node.update_gsl(gid,gsl[i],i) 
-                            # liu:这里更新地面站gid的第i条gsl连接的卫星为gsl[i]，然后更新从卫星satellite_node到gid的路由表（3.更新卫星到地面站）
-                elif len(sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]) > 0:
-                    for msg in sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]:
-                        gid = msg["gid"]
-                        gsl_to_update = msg["gsl_to_update"]
-                        satellite_node.update_gsl(gid,sat_selector.gsls[gid][gsl_to_update],gsl_to_update)
-                        # liu:更新地面站gid的gsl_to_update连接的卫星为sat_selector.gsls[gid][gsl_to_update]，然后更新卫星到该地面站的路由表
+        #         # 不管有没有变动，每个时隙都复制一遍 sat_selector 的 gsls，并重新计算 sat to gs
+        #         if  satellite_node.need_to_update_forward_table_to_sats:
+        #             for gid,gsl in sat_selector.gsls.items():
+        #                 for i in range(2):
+        #                     satellite_node.update_gsl(gid,gsl[i],i) 
+        #                     # liu:这里更新地面站gid的第i条gsl连接的卫星为gsl[i]，然后更新从卫星satellite_node到gid的路由表（3.更新卫星到地面站）
+        #         elif len(sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]) > 0:
+        #             for msg in sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]:
+        #                 gid = msg["gid"]
+        #                 gsl_to_update = msg["gsl_to_update"]
+        #                 satellite_node.update_gsl(gid,sat_selector.gsls[gid][gsl_to_update],gsl_to_update)
+        #                 # liu:更新地面站gid的gsl_to_update连接的卫星为sat_selector.gsls[gid][gsl_to_update]，然后更新卫星到该地面站的路由表
 
-        print("\n 构建多线程参数")
-        threads = []    # liu:存放线程对象
-        satellite_node_slices = []  # liu:存放分割的satellite_nodes的索引范围
-        slices_step = 330   # liu:步长，决定每一线程处理多少satellite_nodes中的元素
-        start = 0
-        stop = start + slices_step
-        while stop < len(satellite_nodes):
-            satellite_node_slices.append((start,stop))
-            start = start + slices_step
-            stop = stop + slices_step
-            if stop > len(satellite_nodes):
-                stop = len(satellite_nodes)
-        if start!=len(satellite_nodes):
-            satellite_node_slices.append((start,stop))
+        # print("\n 构建多线程参数")
+        # threads = []    # liu:存放线程对象
+        # satellite_node_slices = []  # liu:存放分割的satellite_nodes的索引范围
+        # slices_step = 330   # liu:步长，决定每一线程处理多少satellite_nodes中的元素
+        # start = 0
+        # stop = start + slices_step
+        # while stop < len(satellite_nodes):
+        #     satellite_node_slices.append((start,stop))
+        #     start = start + slices_step
+        #     stop = stop + slices_step
+        #     if stop > len(satellite_nodes):
+        #         stop = len(satellite_nodes)
+        # if start!=len(satellite_nodes):
+        #     satellite_node_slices.append((start,stop))
         
-        print("建立线程")
+        # print("建立线程")
 
-        # liu:每一个分片的索引范围，都创建一个新的线程。这个线程的目标函数是worker
-        for start,stop in satellite_node_slices:
-            thread = threading.Thread(target=worker, kwargs={"satellite_nodes": satellite_nodes, 
-                                                             "start":start,
-                                                             "stop":stop,
-                                                             "sat_net_graph_only_satellites_with_isls": sat_net_graph_only_satellites_with_isls,
-                                                             "sat_selector":sat_selector})
-            threads.append(thread)
+        # # liu:每一个分片的索引范围，都创建一个新的线程。这个线程的目标函数是worker
+        # for start,stop in satellite_node_slices:
+        #     thread = threading.Thread(target=worker, kwargs={"satellite_nodes": satellite_nodes, 
+        #                                                      "start":start,
+        #                                                      "stop":stop,
+        #                                                      "sat_net_graph_only_satellites_with_isls": sat_net_graph_only_satellites_with_isls,
+        #                                                      "sat_selector":sat_selector})
+        #     threads.append(thread)
 
-        # liu:启动所有线程，并发执行
-        print("调度线程")
-        for thread in threads:
-            thread.start()
+        # # liu:启动所有线程，并发执行
+        # print("调度线程")
+        # for thread in threads:
+        #     thread.start()
 
-        # liu:join，等待所有子线程的完成
-        for thread in threads:
-            thread.join()
-        print("全部线程执行完毕")
-
-
+        # # liu:join，等待所有子线程的完成
+        # for thread in threads:
+        #     thread.join()
+        # print("全部线程执行完毕")
 
 
-        # print("\n satellite_node.process() \n 依据gsl是否变化和卫星自身路由表是否变化，确定是否需要更新 gsl 及对应路由表")
-        # for satellite_node in satellite_nodes:
-        #     satellite_node.update_sat_net_graph_only_satellites_with_isls(sat_net_graph_only_satellites_with_isls)
-        #     satellite_node.process()
-        #     # 不管有没有变动，每个时隙都复制一遍 sat_selector 的 gsls，并重新计算 sat to gs
-        #     if  satellite_node.need_to_update_forward_table_to_sats:
-        #         for gid,gsl in sat_selector.gsls.items():
-        #             for i in range(2):
-        #                 satellite_node.update_gsl(gid,gsl[i],i)
-        #     elif len(sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]) > 0:
-        #         for msg in sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]:
-        #             gid = msg["gid"]
-        #             gsl_to_update = msg["gsl_to_update"]
-        #             satellite_node.update_gsl(gid,sat_selector.gsls[gid][gsl_to_update],gsl_to_update)
+
+
+        print("\n satellite_node.process() \n 依据gsl是否变化和卫星自身路由表是否变化，确定是否需要更新 gsl 及对应路由表")
+        for satellite_node in satellite_nodes:
+            satellite_node.update_sat_net_graph_only_satellites_with_isls(sat_net_graph_only_satellites_with_isls)
+            satellite_node.process()
+            # 不管有没有变动，每个时隙都复制一遍 sat_selector 的 gsls，并重新计算 sat to gs
+            if  satellite_node.need_to_update_forward_table_to_sats:
+                for gid,gsl in sat_selector.gsls.items():
+                    for i in range(2):
+                        satellite_node.update_gsl(gid,gsl[i],i)
+            elif len(sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]) > 0:
+                for msg in sat_selector.time_event_scheduler[sat_selector.curr_slot - 1]:
+                    gid = msg["gid"]
+                    gsl_to_update = msg["gsl_to_update"]
+                    satellite_node.update_gsl(gid,sat_selector.gsls[gid][gsl_to_update],gsl_to_update)
 
         prev_output = generate_dynamic_state_distribute(
             epoch,
