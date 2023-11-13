@@ -22,7 +22,7 @@
 
 # Core values
 dynamic_state_update_interval_ms = 100                          # 100 millisecond update interval
-simulation_end_time_s = 2                                     # 200 seconds
+simulation_end_time_s = 1000                                     # 200 seconds
 pingmesh_interval_ns = 1 * 1000 * 1000                          # A ping every 1ms
 enable_isl_utilization_tracking = True                          # Enable utilization tracking
 isl_utilization_tracking_interval_ns = 1 * 1000 * 1000 * 1000   # 1 second utilization intervals
@@ -59,15 +59,13 @@ dynamic_state = "dynamic_state_" + str(dynamic_state_update_interval_ms) + "ms_f
 full_satellite_network_isls = "starlink_550_isls_plus_grid_ground_stations_starlink_algorithm_free_one_only_over_isls"
 
 chosen_pairs = [
-    ("starlink_550_isls", 1429, 1412, "TcpNewReno", full_satellite_network_isls),
-    ("starlink_550_isls", 1429, 1412, "TcpVegas", full_satellite_network_isls),
-    ("starlink_550_isls", 1416, 1458, "TcpNewReno", full_satellite_network_isls),
-    ("starlink_550_isls", 1416, 1458, "TcpVegas", full_satellite_network_isls),
-    ("starlink_550_isls", 1368, 1448, "TcpNewReno", full_satellite_network_isls),
-    ("starlink_550_isls", 1368, 1448, "TcpVegas", full_satellite_network_isls),
+    ("starlink_550_isls", 1429, 1412, "TcpHybla", full_satellite_network_isls),
+    # ("starlink_550_isls", 1390, 1444, "TcpHybla", full_satellite_network_isls),
+    # ("starlink_550_isls", 1375, 1412, "TcpHybla", full_satellite_network_isls),
+    # ("starlink_550_isls", 1416, 1429, "TcpHybla", full_satellite_network_isls),
 ]
 
-# TCP Reno和Vegas应该是两种拥塞控制算法
+
 
 
 def get_tcp_run_list():
