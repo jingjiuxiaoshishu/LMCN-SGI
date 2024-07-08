@@ -2,3 +2,7 @@
 *.pyc
 dev_testing/
 .vscode
+paper/ns3_experiments/a_b/runs*/
+paper/ns3_experiments/a_b/data*/
+paper/ns3_experiments/a_b/pdf*/
+paper/satellite_networks_state/gen_data*/
