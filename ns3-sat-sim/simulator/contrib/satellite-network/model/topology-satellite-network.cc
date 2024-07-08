@@ -109,6 +109,7 @@ namespace ns3 {
         // Open file
         std::ifstream fs;
         fs.open(m_satellite_network_dir + "/tles.txt");
+        printf("  > Reading TLEs from %s\n", (m_satellite_network_dir + "/tles.txt").c_str());
         NS_ABORT_MSG_UNLESS(fs.is_open(), "File tles.txt could not be opened");
 
         // First line:

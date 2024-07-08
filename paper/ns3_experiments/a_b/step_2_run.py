@@ -29,13 +29,13 @@ except (ImportError, SystemError):
   from run_list import *
 
 local_shell = exputil.LocalShell()
-max_num_processes = 4
+max_num_processes = 10
 
 # Check that no screen is running
-if local_shell.count_screens() != 0:
-    print("There is a screen already running. "
-          "Please kill all screens before running this analysis script (killall screen).")
-    exit(1)
+# if local_shell.count_screens() != 0:
+#     print("There is a screen already running. "
+#           "Please kill all screens before running this analysis script (killall screen).")
+#     exit(1)
 
 # Generate the commands
 

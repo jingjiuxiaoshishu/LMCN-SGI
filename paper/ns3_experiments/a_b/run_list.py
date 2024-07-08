@@ -52,12 +52,16 @@ dynamic_state = "dynamic_state_" + str(dynamic_state_update_interval_ms) + "ms_f
 
 
 # Chosen pairs:
-# > Itaboraí(133) to Kaunas(116)            1296 + 133 = 1429     1296 + 116 = 1412
-# > Apra Heights GU(120) to Ajigaura(162)   1296 + 120 = 1416     1296 + 162 = 1458
-# > Villenave d’Ornon(72) to Lekki(152)     1296 + 72 = 1368      1296 + 152 = 1448
+# > Itaboraí(133) to Kaunas(116)            1296 + 9 = 1305     1296 + 6 = 1302
+# > Apra Heights GU(120) to Ajigaura(162)   
+# > Villenave d’Ornon(72) to Lekki(152)     
 
-full_satellite_network_isls = "starlink_550_isls_plus_grid_ground_stations_starlink_algorithm_free_one_only_over_isls"
-full_satellite_network_isls = "starlink_550_isls_plus_grid_gs_15_algorithm_free_one_only_over_isls"
+# full_satellite_network_isls = "starlink_550_isls_plus_grid_ground_stations_starlink_algorithm_free_one_only_over_isls"
+# full_satellite_network_isls = "starlink_550_isls_plus_grid_gs_15_algorithm_free_one_only_over_isls"
+
+
+# 更改了星座记得修改这里为gen_data中的对应路径
+full_satellite_network_isls = "new_starlink_550_isls_plus_grid_gs_15_algorithm_free_one_only_over_isls"
 
 
 # old pairs
@@ -80,30 +84,81 @@ chosen_pairs = [
 
 
 # new_pairs hybla CSGI
+# chosen_pairs = [
+#     ("starlink_550_isls", 1298, 1302, "TcpHybla", full_satellite_network_isls),
+#     ("starlink_550_isls", 1301, 1308, "TcpHybla", full_satellite_network_isls),
+#     ("starlink_550_isls", 1303, 1305, "TcpHybla", full_satellite_network_isls),
+#     ("starlink_550_isls", 1305, 1302, "TcpHybla", full_satellite_network_isls), # 这一对
+# ]
+
+# new experiment
 chosen_pairs = [
-    ("starlink_550_isls", 1298, 1302, "TcpHybla", full_satellite_network_isls),
-    ("starlink_550_isls", 1301, 1308, "TcpHybla", full_satellite_network_isls),
-    ("starlink_550_isls", 1303, 1305, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1304, 1306, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1299, 1305, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1304, 1309, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1298, 1309, "TcpHybla", full_satellite_network_isls),
     ("starlink_550_isls", 1305, 1302, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1296, 1298, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1301, 1305, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1303, 1309, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1303, 1307, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1303, 1306, "TcpHybla", full_satellite_network_isls)
 ]
 
+# new2 experiment
+chosen_pairs = [
+    ("starlink_550_isls", 1308, 1310, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1296, 1300, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1306, 1309, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1306, 1310, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1302, 1303, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1298, 1308, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1300, 1309, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1300, 1305, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1296, 1305, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1296, 1310, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1301, 1310, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1296, 1306, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1303, 1305, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1303, 1304, "TcpHybla", full_satellite_network_isls)
+]
 
-# # newpair_orgin
+# new3 experiment
+chosen_pairs = [
+    ("starlink_550_isls", 1297, 1300, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1296, 1301, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1298, 1305, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1308, 1309, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1305, 1309, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1299, 1309, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1298, 1310, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1297, 1309, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1297, 1305, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1300, 1310, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1301, 1309, "TcpHybla", full_satellite_network_isls)
+]
+
 # chosen_pairs = [
-#     ("starlink_550_isls", 1375, 1412, "TcpNewReno", full_satellite_network_isls),
-#     ("starlink_550_isls", 1390, 1444, "TcpHybla", full_satellite_network_isls),
-#     ("starlink_550_isls", 1416, 1429, "TcpNewReno", full_satellite_network_isls),
+#     ("starlink_550_isls", 1304, 1306, "TcpHybla", full_satellite_network_isls), #
+#     # ("starlink_550_isls", 1299, 1305, "TcpHybla", full_satellite_network_isls),
+#     # ("starlink_550_isls", 1304, 1309, "TcpHybla", full_satellite_network_isls),
+#     # ("starlink_550_isls", 1298, 1309, "TcpHybla", full_satellite_network_isls),
+#     # ("starlink_550_isls", 1305, 1302, "TcpHybla", full_satellite_network_isls),
+#     ("starlink_550_isls", 1296, 1298, "TcpHybla", full_satellite_network_isls), # 
+#     # ("starlink_550_isls", 1301, 1305, "TcpHybla", full_satellite_network_isls),
+#     # ("starlink_550_isls", 1303, 1309, "TcpHybla", full_satellite_network_isls),
+#     ("starlink_550_isls", 1303, 1307, "TcpHybla", full_satellite_network_isls), # 
+#     # ("starlink_550_isls", 1303, 1306, "TcpHybla", full_satellite_network_isls)
+#     # 重跑
 # ]
 
-# # newpair_hybla orgin
-# chosen_pairs = [
-#     ("starlink_550_isls", 1375, 1412, "TcpHybla", full_satellite_network_isls),
-#     ("starlink_550_isls", 1390, 1444, "TcpHybla", full_satellite_network_isls),
-#     ("starlink_550_isls", 1416, 1429, "TcpHybla", full_satellite_network_isls),
-#     ("starlink_550_isls", 1429, 1412, "TcpHybla", full_satellite_network_isls)
-# ]
-
-
+# 注意修改：重命名原来的文件夹防止覆盖，修改新的节点对和上面的路径
+# Chosen pairs:
+# > Itaboraí(133) to Kaunas(116)            1296 + 9 = 1305     1296 + 6 = 1302
+# > Itaboraí(133) to Kaunas(116)            2592 + 9 = 2601     2592 + 6 = 2598
+chosen_pairs = [
+    ("starlink_550_isls", 2601, 2598, "TcpHybla", full_satellite_network_isls) # 这一对
+]
 
 # TCP Reno和Vegas应该是两种拥塞控制算法
 
