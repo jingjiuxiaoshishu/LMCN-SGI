@@ -2,3 +2,10 @@
 *.pyc
 dev_testing/
 .vscode
+
+exputilpy/
+networkload/
+paper/ns3_experiments/a_b/data0/
+paper/ns3_experiments/a_b/data1/
+paper/ns3_experiments/a_b/pdf0/
+paper/ns3_experiments/a_b/pdf1/

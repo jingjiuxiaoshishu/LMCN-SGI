@@ -58,14 +58,65 @@ dynamic_state = "dynamic_state_" + str(dynamic_state_update_interval_ms) + "ms_f
 
 full_satellite_network_isls = "starlink_550_isls_plus_grid_ground_stations_starlink_algorithm_free_one_only_over_isls"
 
+# chosen_pairs = [
+#     ("starlink_550_isls", 1429, 1412, "TcpHybla", full_satellite_network_isls),
+#     # ("starlink_550_isls", 1390, 1444, "TcpHybla", full_satellite_network_isls),
+#     # ("starlink_550_isls", 1375, 1412, "TcpHybla", full_satellite_network_isls),
+#     # ("starlink_550_isls", 1416, 1429, "TcpHybla", full_satellite_network_isls),
+# ]
+
+# new experiment
 chosen_pairs = [
-    ("starlink_550_isls", 1429, 1412, "TcpHybla", full_satellite_network_isls),
-    # ("starlink_550_isls", 1390, 1444, "TcpHybla", full_satellite_network_isls),
-    # ("starlink_550_isls", 1375, 1412, "TcpHybla", full_satellite_network_isls),
-    # ("starlink_550_isls", 1416, 1429, "TcpHybla", full_satellite_network_isls),
+    ("starlink_550_isls", 1428, 1433, "TcpHybla", full_satellite_network_isls), # Guarapari-Mossoró, Distance: 1735.6245179531911 km
+    ("starlink_550_isls", 1380, 1429, "TcpHybla", full_satellite_network_isls), # Puerto Montt-Itaboraí, Distance: 3496.8870496604764 km
+    ("starlink_550_isls", 1428, 1448, "TcpHybla", full_satellite_network_isls), # Guarapari-Lekki, Distance: 5663.13441959684 km
+    ("starlink_550_isls", 1375, 1448, "TcpHybla", full_satellite_network_isls), # Noviciado-Lekki, Distance: 8981.135126517354 km
+    ("starlink_550_isls", 1429, 1412, "TcpHybla", full_satellite_network_isls), # Itaboraí-Kaunas, Distance: 10663.65598168759 km
+    ("starlink_550_isls", 1364, 1375, "TcpHybla", full_satellite_network_isls), # Willows QLD-Noviciado, Distance: 12500.392408137142 km
+    ("starlink_550_isls", 1390, 1429, "TcpHybla", full_satellite_network_isls), # Springbrook Creek NSW-Itaboraí, Distance: 13974.337264882593 km
+    ("starlink_550_isls", 1416, 1448, "TcpHybla", full_satellite_network_isls), # Apra Heights GU-Lekki, Distance: 15200.86463974216 km
+    ("starlink_550_isls", 1416, 1443, "TcpHybla", full_satellite_network_isls), # Apra Heights GU-Falda del Carmen, Distance: 16434.845430798403 km
+    ("starlink_550_isls", 1416, 1433, "TcpHybla", full_satellite_network_isls)  # Apra Heights GU-Mossoró, Distance: 19066.09839237275 km
 ]
 
+# new2 experiment
+chosen_pairs = [
+    ("starlink_550_isls", 1444, 1454, "TcpHybla", full_satellite_network_isls), # Milano-Wherstead (LICENSE PENDING), Distance: 950.3259764044684 km
+    ("starlink_550_isls", 1364, 1383, "TcpHybla", full_satellite_network_isls), # Willows QLD-Merredin WA, Distance: 3002.7283616981317 km
+    ("starlink_550_isls", 1433, 1448, "TcpHybla", full_satellite_network_isls), # Mossoró-Lekki, Distance: 4727.013114577765 km
+    ("starlink_550_isls", 1433, 1454, "TcpHybla", full_satellite_network_isls), # Mossoró-Wherstead (LICENSE PENDING), Distance: 7308.2753470908565 km
+    ("starlink_550_isls", 1412, 1416, "TcpHybla", full_satellite_network_isls), # Kaunas-Apra Heights GU, Distance: 10640.403703179678 km
+    ("starlink_550_isls", 1375, 1444, "TcpHybla", full_satellite_network_isls), # Noviciado-Milano, Distance: 11865.320976485178 km
+    ("starlink_550_isls", 1383, 1448, "TcpHybla", full_satellite_network_isls), # Merredin WA-Lekki, Distance: 12725.376243957591 km
+    ("starlink_550_isls", 1383, 1429, "TcpHybla", full_satellite_network_isls), # Merredin WA-Itaboraí, Distance: 13682.293455059284 km
+    ("starlink_550_isls", 1364, 1429, "TcpHybla", full_satellite_network_isls), # Willows QLD-Itaboraí, Distance: 14754.597840542565 km
+    ("starlink_550_isls", 1364, 1454, "TcpHybla", full_satellite_network_isls), # Willows QLD-Wherstead (LICENSE PENDING), Distance: 15762.313237292155 km
+    ("starlink_550_isls", 1390, 1454, "TcpHybla", full_satellite_network_isls), # Springbrook Creek NSW-Wherstead (LICENSE PENDING), Distance: 16499.116954011977 km
+    ("starlink_550_isls", 1364, 1433, "TcpHybla", full_satellite_network_isls), # Willows QLD-Mossoró, Distance: 16772.819724295878 km
+    ("starlink_550_isls", 1416, 1429, "TcpHybla", full_satellite_network_isls), # Apra Heights GU-Itaboraí, Distance: 18713.378673993346 km
+    ("starlink_550_isls", 1416, 1428, "TcpHybla", full_satellite_network_isls) # Apra Heights GU-Guarapari, Distance: 19054.61390765489 km
+]
 
+# new3 experiment
+chosen_pairs = [
+    ("starlink_550_isls", 1367, 1383, "TcpHybla", full_satellite_network_isls), # Wagin WA-Merredin WA, Distance: 219.4654655365272 km
+    ("starlink_550_isls", 1364, 1390, "TcpHybla", full_satellite_network_isls), # Willows QLD-Springbrook Creek NSW, Distance: 781.0095826293394 km
+    ("starlink_550_isls", 1375, 1429, "TcpHybla", full_satellite_network_isls), # Noviciado-Itaboraí, Distance: 2985.74556717517 km
+    ("starlink_550_isls", 1444, 1448, "TcpHybla", full_satellite_network_isls), # Milano-Lekki, Distance: 4341.6896948241065 km
+    ("starlink_550_isls", 1429, 1448, "TcpHybla", full_satellite_network_isls), # Itaboraí-Lekki, Distance: 5997.9700529407455 km
+    ("starlink_550_isls", 1380, 1448, "TcpHybla", full_satellite_network_isls), # Puerto Montt-Lekki, Distance: 9379.279610221876 km
+    ("starlink_550_isls", 1375, 1454, "TcpHybla", full_satellite_network_isls), # Noviciado-Wherstead (LICENSE PENDING), Distance: 11762.33273324635 km
+    ("starlink_550_isls", 1367, 1448, "TcpHybla", full_satellite_network_isls), # Wagin WA-Lekki, Distance: 12610.55360351455 km
+    ("starlink_550_isls", 1367, 1429, "TcpHybla", full_satellite_network_isls), # Wagin WA-Itaboraí, Distance: 13463.059013719083 km
+    ("starlink_550_isls", 1383, 1454, "TcpHybla", full_satellite_network_isls), # Merredin WA-Wherstead (LICENSE PENDING), Distance: 14515.808673092053 km
+    ("starlink_550_isls", 1390, 1448, "TcpHybla", full_satellite_network_isls) # Springbrook Creek NSW-Lekki, Distance: 15596.735173583394 km
+]
+
+# chosen_pairs = [
+#     ("starlink_550_isls", 1428, 1448, "TcpHybla", full_satellite_network_isls), # Guarapari-Lekki, Distance: 5663.13441959684 km
+#     ("starlink_550_isls", 1429, 1412, "TcpHybla", full_satellite_network_isls), # Itaboraí-Kaunas, Distance: 10663.65598168759 km
+#     # 又出bug，有两个没有run出结果，尚不清楚什么原因，重新单独跑
+# ]
 
 
 def get_tcp_run_list():
